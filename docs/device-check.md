@@ -9,3 +9,4 @@ Use a phone with a working speech recognizer and an invented conversation. Recor
 5. With Ollama running, opt in to AI for a short invented lecture, then a meeting. Check the distinct note headings, each cited excerpt, a question with a clear answer, and a question about an absent fact.
 6. Disconnect the notes host after saving. Open the transcript and verify it is readable. Reconnect and retry generation. Confirm AI is opt-in again for the next session.
 7. Delete a saved session. Reopen the app and confirm it is gone.
+8. On iOS 26, switch between Notebook and Preferences. Check that the dock uses Liquid Glass, then enable Reduce Transparency and look for a solid dock. Enable Reduce Motion and confirm the dock and recording meter stay still. In a regular capture, speak at different volumes and check that the meter responds while the caption text remains stable.

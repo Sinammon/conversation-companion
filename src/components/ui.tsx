@@ -3,7 +3,10 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import type { TextStyle, ViewStyle } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 
-export const c = { paper: '#F8F7F2', ink: '#182A24', muted: '#515F57', green: '#204B3E', lime: '#D2EFA8', line: '#D2D8CD', wash: '#E8EEE3', white: '#FFFFFF', error: '#8E3028' };
+export const c = {
+  paper: '#F8F5EF', ink: '#202421', muted: '#555A53', green: '#234B3E', lime: '#DEE9DA', line: '#DDD8CD',
+  wash: '#EBE8E0', white: '#FFFFFF', surface: '#FFFDFA', error: '#8E3028', record: '#A23D31', recordWash: '#F7E7E0',
+};
 export const serif = Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, serif' });
 const paths = {
   mic: 'M9 6a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3 M9 22h6',
@@ -24,7 +27,7 @@ export function Icon({ name, size = 22, color = c.ink }: { name: IconName; size?
 export function Wave() {
   const heights = [4,6,4,8,12,8,14,22,13,20,31,42,25,18,30,48,61,43,26,35,55,66,48,29,37,24,18,33,45,27,17,23,14,9,15,8,5,7,4];
   return <Svg width="100%" height={64} viewBox="0 0 248 70" preserveAspectRatio="none" accessible={false} aria-hidden>
-    {heights.map((h,i) => <Rect key={i} x={i*6.4} y={(70-h)/2} width={2.8} height={h} rx={1.4} fill={c.lime} opacity={0.55 + h / 160} />)}
+    {heights.map((h,i) => <Rect key={i} x={i*6.4} y={(70-h)/2} width={2.8} height={h} rx={1.4} fill={c.record} opacity={0.30 + h / 110} />)}
   </Svg>;
 }
 export function Copy({ children, style, muted, alert }: { children: React.ReactNode; style?: TextStyle; muted?: boolean; alert?: boolean }) {
@@ -34,12 +37,12 @@ export function Heading({ children }: { children: React.ReactNode }) {
   return <Text accessibilityRole="header" style={s.title}>{children}</Text>;
 }
 export function Label({ children }: { children: React.ReactNode }) { return <Text style={s.label}>{children}</Text>; }
-export function Action({ label, onPress, icon, secondary, light, disabled }: {
-  label: string; onPress: () => void; icon?: IconName; secondary?: boolean; light?: boolean; disabled?: boolean;
+export function Action({ label, onPress, icon, secondary, recording, disabled, expanded }: {
+  label: string; onPress: () => void; icon?: IconName; secondary?: boolean; recording?: boolean; disabled?: boolean; expanded?: boolean;
 }) {
-  const color = light || secondary ? c.ink : c.white;
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [s.action, { backgroundColor: light ? c.lime : secondary ? c.wash : c.green, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 }]}>
+  const color = secondary ? c.ink : c.white;
+  return <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityState={{ disabled: !!disabled, expanded }} disabled={disabled} onPress={onPress}
+    style={({ pressed }) => [s.action, { backgroundColor: secondary ? c.wash : recording ? c.record : c.green, opacity: disabled ? 0.56 : pressed ? 0.82 : 1 }]}>
     {icon && <Icon name={icon} color={color} size={19} />}<Text style={[s.actionText, { color }]}>{label}</Text>
   </Pressable>;
 }
@@ -61,7 +64,7 @@ export const s = StyleSheet.create({
   title: { fontFamily: serif, fontSize: 42, lineHeight: 50, letterSpacing: -1.5, color: c.ink },
   subtitle: { fontFamily: serif, fontSize: 26, color: c.ink, letterSpacing: -0.55 },
   label: { fontSize: 13, fontWeight: '700', color: c.muted, letterSpacing: 0.4 },
-  action: { flexDirection: 'row', gap: 9, minHeight: 50, borderRadius: 8, paddingHorizontal: 17, paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
+  action: { flexDirection: 'row', gap: 9, minHeight: 50, borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 17, paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
   actionText: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: c.wash, padding: 4, borderRadius: 9, gap: 2 },
   choice: { flexGrow: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9, paddingVertical: 9, borderRadius: 6 },

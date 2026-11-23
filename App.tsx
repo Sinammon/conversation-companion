@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, StatusBar, Text, View } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Action, c, Choices, Copy, Heading, Icon, Label, Page, s } from './src/components/ui';
+import { Action, c, Copy, Heading, Icon, Label, Page, s } from './src/components/ui';
+import { LiquidNavbar } from './src/components/liquid-navbar';
+import { CaptionSizeControl, captionSizes } from './src/components/caption-size';
+import type { CaptionSize } from './src/components/caption-size';
 import { Capture } from './src/screens/capture';
 import { Notebook } from './src/screens/notebook';
 import { Detail } from './src/screens/detail';
@@ -11,7 +14,6 @@ import { useNotes } from './src/ai/use-notes';
 import type { Session } from './src/types';
 
 type Screen = 'Notebook' | 'Preferences' | 'Capture' | 'Detail';
-const sizes = { Standard: 21, Large: 26, Largest: 34 };
 export default function App() {
   const [screen, setScreen] = useState<Screen>('Notebook');
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -26,7 +28,7 @@ export default function App() {
     setStatus('loading');
     try {
       const [saved, preference] = await Promise.all([loadSessions(), loadSize()]);
-      setSessions(saved); setSize(Object.values(sizes).includes(preference) ? preference : 26); setStatus('ready');
+      setSessions(saved); setSize(Object.values(captionSizes).includes(preference) ? preference : captionSizes.Large); setStatus('ready');
     } catch { setStatus('error'); }
   }
   useEffect(() => { void load(); }, []);
@@ -39,10 +41,10 @@ export default function App() {
     await saveSession(session);
     setSessions(prev => [session, ...prev.filter(s => s.id !== session.id)].sort((a, b) => b.startedAt - a.startedAt));
   }
-  async function changeSize(label: keyof typeof sizes) {
+  async function changeSize(label: CaptionSize) {
     if (savingSize) return;
     setSavingSize(true); setSizeError('');
-    try { await saveSize(sizes[label]); setSize(sizes[label]); }
+    try { await saveSize(captionSizes[label]); setSize(captionSizes[label]); }
     catch { setSizeError('Could not save your caption size. Try again.'); }
     finally { setSavingSize(false); }
   }
@@ -51,31 +53,23 @@ export default function App() {
   return <SafeAreaProvider><SafeAreaView style={{ flex: 1, backgroundColor: c.paper }}>
     <StatusBar barStyle="dark-content" />
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      <View style={{ borderBottomWidth: 1, borderColor: c.line, marginBottom: topLevel ? 0 : 10 }}>
-        <View style={[s.row, { alignSelf: 'center', width: '100%', maxWidth: 720, paddingHorizontal: 22, paddingVertical: 13, gap: 10 }]}>
-          <View style={{ backgroundColor: c.green, padding: 7, borderRadius: 9 }}><Icon name="sound" size={19} color={c.lime} /></View>
-          <Text style={{ fontSize: 16, color: c.ink, fontWeight: '700', flexShrink: 1 }}>Conversation Companion</Text>
-        </View>
-      </View>
+      {topLevel && <View style={[s.row, { alignSelf: 'center', width: '100%', maxWidth: 720, paddingHorizontal: 22, paddingVertical: 12, gap: 10 }]}>
+        <View style={{ backgroundColor: c.green, padding: 7, borderRadius: 10 }}><Icon name="sound" size={18} color={c.lime} /></View>
+        <Text style={{ fontSize: 15, color: c.ink, fontWeight: '700', flexShrink: 1 }}>Conversation Companion</Text>
+      </View>}
       {status !== 'ready' ? <Page><Copy>{status === 'loading' ? 'Opening notebook…' : 'Your notebook could not be opened on this device.'}</Copy>
         {status === 'error' && <Action label="Try again" onPress={() => void load()} />}</Page> :
         screen === 'Notebook' ? <Notebook sessions={sessions} onNew={() => setScreen('Capture')} onOpen={s => { setCurrent(s.id); setAuto(false); setScreen('Detail'); }} /> :
-        screen === 'Capture' ? <Capture size={size} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); setCurrent(s.id); setAuto(s.allowAI); setScreen('Detail'); if (s.allowAI) void generate(s); }} /> :
+        screen === 'Capture' ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); setCurrent(s.id); setAuto(s.allowAI); setScreen('Detail'); if (s.allowAI) void generate(s); }} /> :
         screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} auto={auto} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
           onUpdate={persist} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
-        <Page><Heading>Preferences</Heading><View style={s.group}><Label>Caption size</Label>
-          <Choices values={['Standard', 'Large', 'Largest']} selected={size === 21 ? 'Standard' : size === 34 ? 'Largest' : 'Large'} onChange={v => void changeSize(v)} /></View>
+        <Page><Heading>Preferences</Heading><CaptionSizeControl size={size} onChange={v => void changeSize(v)} />
           {!!sizeError && <Copy alert>{sizeError}</Copy>}
           <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.white }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
           <View style={s.group}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
             <Copy muted>{serviceUrl ? 'You choose whether to share the transcript for each session.' : 'Captions and saved sessions work independently. See the project README to connect Ollama for notes and questions.'}</Copy></View>
         </Page>}
-      {topLevel && status === 'ready' && <View style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: c.line, backgroundColor: c.paper }}>
-        {(['Notebook', 'Preferences'] as const).map(name => <Pressable key={name} accessibilityRole="tab" aria-selected={name === screen} accessibilityState={{ selected: name === screen }}
-          onPress={() => setScreen(name)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, padding: 10, minHeight: 60 }}>
-          <Icon name={name === 'Notebook' ? 'book' : 'tune'} color={name === screen ? c.green : c.muted} size={22} />
-          <Text style={{ fontSize: 13, color: name === screen ? c.green : c.muted, fontWeight: name === screen ? '700' : '500' }}>{name}</Text>
-        </Pressable>)}</View>}
+      {topLevel && status === 'ready' && <LiquidNavbar active={screen} onChange={setScreen} />}
     </KeyboardAvoidingView>
   </SafeAreaView></SafeAreaProvider>;
 }

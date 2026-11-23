@@ -25,6 +25,8 @@ For a standalone preview on an ARM64 Android phone, download the APK artifact fr
 
 After installing a development build, run `npm start` and open its Metro link. Rebuild after changing a native plugin, app permission, or Android HTTP transport setting. The speech module requires a development build on phones. Expo Go lacks that module.
 
+Rebuild a development client made before the Liquid Glass update. The dock uses Expo's native glass effect on supported iOS 26 builds, with a solid surface on other platforms and when Reduce Transparency is enabled.
+
 For an existing generated Android project, run `npx expo prebuild --platform android` before rebuilding to apply changed app configuration.
 
 ### First session
@@ -32,7 +34,7 @@ For an existing generated Android project, run `npx expo prebuild --platform and
 1. Tap **New session**, give it an optional title, and choose **Lecture** or **Meeting**.
 2. Get agreement from everyone, check the consent box, and tap **Start live captions**. Grant microphone and speech permissions when prompted.
 3. Read the interim text as it settles into the transcript. **Pause auto-scroll** lets you read an earlier passage. If recognition stops, the app shows **Microphone off** and offers **Resume captions**.
-4. Tap **Stop microphone**, then **Save session**. Reopen it from **My notebook**. Change **Preferences → Caption size** to adjust the live reader and saved transcript.
+4. Use **Caption size** in the live reader or **Preferences** to adjust live and saved captions. Tap **Stop microphone**, then **Save session**. Reopen it from **My notebook**.
 
 ## Connect AI notes and Q&A
 

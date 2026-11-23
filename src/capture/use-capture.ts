@@ -99,6 +99,7 @@ export function useCapture() {
         lang: 'en-US', interimResults: true,
         continuous: Platform.OS !== 'android' || Number(Platform.Version) >= 33,
         recordingOptions: { persist: false },
+        volumeChangeEventOptions: { enabled: Platform.OS !== 'web', intervalMillis: 120 },
       });
     } catch (cause) {
       if (!mounted.current) return;

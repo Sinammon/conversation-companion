@@ -5,6 +5,9 @@ import { useCapture } from '../capture/use-capture';
 import { finish } from '../capture/transcript';
 import { serviceUrl } from '../ai/client';
 import { useKeepAwake } from 'expo-keep-awake';
+import { CaptionSizeControl } from '../components/caption-size';
+import type { CaptionSize } from '../components/caption-size';
+import { RecordingMeter } from '../components/recording-meter';
 import type { Mode, Session } from '../types';
 
 function KeepScreenAwake() {
@@ -20,7 +23,10 @@ function Check({ value, toggle, title, detail }: { value: boolean; toggle: () =>
     <View style={{ flex: 1, gap: 4 }}><Text style={[s.body, { fontWeight: '600' }]}>{title}</Text>{detail && <Text style={[s.body, { color: c.muted }]}>{detail}</Text>}</View>
   </Pressable>;
 }
-export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: (session: Session) => Promise<void>; size: number }) {
+export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
+  onExit: () => void; onSave: (session: Session) => Promise<void>; size: number;
+  sizeError: string; onSizeChange: (size: CaptionSize) => void;
+}) {
   const cap = useCapture();
   const [consent, setConsent] = useState(false);
   const [allowAI, setAllowAI] = useState(false);
@@ -30,10 +36,12 @@ export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: 
   const [saveError, setSaveError] = useState('');
   const [discard, setDiscard] = useState(false);
   const [follow, setFollow] = useState(true);
+  const [showSize, setShowSize] = useState(false);
   const list = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const lock = useRef(false);
   const capturing = cap.startedAt.current !== 0;
   const stopped = cap.phase === 'paused';
+  const listening = cap.phase === 'listening';
   const busy = cap.phase === 'permission' || cap.phase === 'starting' || cap.phase === 'stopping';
   const captions = finish(cap.transcript);
   function back() {
@@ -74,8 +82,8 @@ export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: 
   const status = ({ ready: 'Ready', permission: 'Checking permission…', starting: 'Opening microphone…', listening: 'Listening', stopping: 'Finishing captions…', paused: 'Microphone off' })[cap.phase];
   return <View style={{ flex: 1 }}>
     {(cap.phase === 'starting' || cap.phase === 'listening') && <KeepScreenAwake />}
-    <View style={{ alignSelf: 'flex-start', paddingLeft: 12 }}><Action label={capturing ? 'Leave session' : 'Notebook'} secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} /></View>
     {!capturing ? <Page>
+      <View style={{ alignSelf: 'flex-start' }}><Action label="Notebook" secondary icon="back" onPress={back} disabled={cap.phase === 'permission'} /></View>
       <Heading>New session</Heading>
       <View style={s.group}><Label>Session title (optional)</Label><TextInput accessibilityLabel="Session title" placeholder="e.g. Biology seminar" placeholderTextColor={c.muted} style={s.input} maxLength={120} value={title} onChangeText={setTitle} /></View>
       <View style={s.group}><Label>Note format</Label><Choices values={['Lecture', 'Meeting']} selected={mode} onChange={setMode} />
@@ -88,11 +96,23 @@ export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: 
       </View>
       {!!cap.error && <Copy alert>{cap.error}</Copy>}
       {!!cap.error && Platform.OS !== 'web' && <Action secondary label="Open device settings" onPress={() => { void Linking.openSettings().catch(() => {}); }} />}
-      <Action label={busy ? status : 'Start live captions'} icon="mic" disabled={!consent || busy} onPress={() => void cap.start(consent)} />
-    </Page> : <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 720, padding: 18, gap: 12 }}>
-      <View style={[s.row, { justifyContent: 'space-between' }]}><Label>{mode} · {formatTime(cap.elapsed)}</Label><Text accessibilityLiveRegion="polite" style={[s.label, { color: c.green }]}>{status}</Text></View>
+      <Action recording label={busy ? status : 'Start live captions'} icon="mic" disabled={!consent || busy} onPress={() => void cap.start(consent)} />
+    </Page> : <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 720, padding: 18, gap: 11 }}>
+      <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}>
+        <Action label="Leave session" secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} />
+        <Action label="Caption size" secondary icon="tune" expanded={showSize} onPress={() => setShowSize(!showSize)} />
+      </View>
+      <View style={[s.row, { justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, flexWrap: 'wrap',
+        backgroundColor: listening ? c.recordWash : c.wash }]}>
+        <View style={{ flexShrink: 1 }}>
+          <Label>{mode} · <Text style={{ fontVariant: ['tabular-nums'] }}>{formatTime(cap.elapsed)}</Text></Label>
+          <Text accessibilityLiveRegion="polite" style={[s.label, { color: listening ? c.record : c.ink }]}>{status}</Text>
+        </View>
+        <RecordingMeter listening={listening} />
+      </View>
       <Text accessibilityRole="header" style={s.subtitle}>Live captions</Text>
-      <ScrollView ref={list} style={{ flex: 1, backgroundColor: c.white, borderRadius: 10 }} contentContainerStyle={{ padding: 16, gap: 13 }}
+      {showSize && <View style={{ gap: 5 }}><CaptionSizeControl size={size} onChange={onSizeChange} />{!!sizeError && <Copy alert>{sizeError}</Copy>}</View>}
+      <ScrollView ref={list} style={{ flex: 1, minHeight: 64, backgroundColor: c.white, borderRadius: 16, borderWidth: 1, borderColor: c.line }} contentContainerStyle={{ padding: 16, gap: 14 }}
         onContentSizeChange={() => { if (follow) list.current?.scrollToEnd({ animated: false }); }}>
         {!captions.length && <Copy muted>{stopped ? 'No speech captured yet.' : 'Captions will appear when someone speaks.'}</Copy>}
         {cap.transcript.final.map((line, i) => <Text selectable key={i} style={{ fontSize: size, lineHeight: size * 1.45, color: c.ink }}>{line.text}</Text>)}
@@ -105,7 +125,7 @@ export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: 
           : stopped ? <><Action label={saving ? 'Saving…' : 'Save session'} disabled={!captions.length || saving} icon="book" onPress={() => void save()} />
             <Action secondary label="Resume captions" icon="mic" disabled={saving} onPress={() => void cap.start(consent)} /></>
           : <><Action secondary label={follow ? 'Pause auto-scroll' : 'Follow live captions'} onPress={() => { setFollow(!follow); if (!follow) list.current?.scrollToEnd(); }} />
-            <Action label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} /></>}
+            <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} /></>}
       </ScrollView>
     </View>}
   </View>;
