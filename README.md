@@ -25,7 +25,7 @@ For a standalone preview on an ARM64 Android phone, download the APK artifact fr
 
 After installing a development build, run `npm start` and open its Metro link. Rebuild after changing a native plugin, app permission, or Android HTTP transport setting. The speech module requires a development build on phones. Expo Go lacks that module.
 
-Rebuild a development client made before the Liquid Glass update. The dock uses Expo's native glass effect on supported iOS 26 builds, with a solid surface on other platforms and when Reduce Transparency is enabled.
+Rebuild a development client made before the native Liquid Glass update. The native dock uses Expo's glass effect on supported iOS 26 builds, with a solid surface on Android and when Reduce Transparency is enabled. The browser dock uses the Waterline WebGL effect with a CSS fallback.
 
 For an existing generated Android project, run `npx expo prebuild --platform android` before rebuilding to apply changed app configuration.
 
@@ -80,3 +80,9 @@ GitHub Actions runs these checks on pushes and pull requests. Browser tests inje
 The **Real model smoke test** workflow can be run manually from GitHub Actions. It downloads the configured model in an isolated runner and checks real notes and an answer against a short synthetic meeting transcript. With the service and model running locally, the equivalent command is `node --test tests/model/ollama.smoke.mjs`.
 
 The app entry is `App.tsx`. Shared controls live in `src/components`, views in `src/screens`, speech lifecycle in `src/capture`, and persistence in `src/storage`. The mobile AI client lives in `src/ai` and calls the separate Node service in `server/`. The [technical plan](docs/superpowers/plans/2026-11-23-conversation-companion.md) covers speech costs, decisions, and testing.
+
+### Web navbar and component setup
+
+The browser entry for the dock is `src/components/liquid-navbar.web.tsx`. It maps Notebook and Preferences to Guglielmo Giannattasio's Waterline component in `src/components/ui/liquid-glass-navbar.web.tsx`. The imported component uses React, TypeScript, co-located CSS, and the browser's WebGL API. Shared Expo controls use React Native styles in `src/components/ui.tsx`. The `src/components/ui/` directory groups reusable browser UI where a shadcn-style `@/components/ui` alias would point. [Original Waterline component](https://dev.21st.dev/%40gughigug/components/liquid-glass-navbar) · [MIT notice](src/components/ui/liquid-glass-navbar.LICENSE)
+
+The Expo project already has TypeScript. Waterline supplies its own styles and installs no Tailwind or shadcn dependencies. To use shadcn in a separate web host, scaffold a React + TypeScript Vite app with `npm create vite@latest web -- --template react-ts`. In that project, install `tailwindcss` and `@tailwindcss/vite`, add the Tailwind Vite plugin and `@import "tailwindcss";` to the main stylesheet, and map `@/*` to `src/*` in TypeScript and Vite. Then run `npx shadcn@latest init`. [shadcn Vite setup](https://ui.shadcn.com/docs/installation/vite)

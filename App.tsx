@@ -3,6 +3,7 @@ import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, Text, View } fr
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Action, c, Copy, Heading, Icon, Label, Page, s } from './src/components/ui';
 import { LiquidNavbar } from './src/components/liquid-navbar';
+import { mainTabPanelId, mainTabs } from './src/components/main-tabs';
 import { CaptionSizeControl, captionSizes } from './src/components/caption-size';
 import type { CaptionSize } from './src/components/caption-size';
 import { Capture } from './src/screens/capture';
@@ -50,6 +51,20 @@ export default function App() {
   }
   const session = sessions.find(s => s.id === current);
   const topLevel = screen === 'Notebook' || screen === 'Preferences';
+  const browserTab = Platform.OS === 'web' && status === 'ready' && mainTabs.find(tab => tab.name === screen);
+  const content = status !== 'ready' ? <Page><Copy>{status === 'loading' ? 'Opening notebook…' : 'Your notebook could not be opened on this device.'}</Copy>
+    {status === 'error' && <Action label="Try again" onPress={() => void load()} />}</Page> :
+    screen === 'Notebook' ? <Notebook sessions={sessions} onNew={() => setScreen('Capture')} onOpen={s => { setCurrent(s.id); setAuto(false); setScreen('Detail'); }} /> :
+    screen === 'Capture' ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); setCurrent(s.id); setAuto(s.allowAI); setScreen('Detail'); if (s.allowAI) void generate(s); }} /> :
+    screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} auto={auto} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
+      onUpdate={persist} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
+    <Page><Heading>Preferences</Heading><CaptionSizeControl size={size} onChange={v => void changeSize(v)} />
+      {!!sizeError && <Copy alert>{sizeError}</Copy>}
+      <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.white }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
+      <View style={s.group}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
+        <Copy muted>{serviceUrl ? 'You choose whether to share the transcript for each session.' : 'Captions and saved sessions work independently. See the project README to connect Ollama for notes and questions.'}</Copy></View>
+    </Page>;
+
   return <SafeAreaProvider><SafeAreaView style={{ flex: 1, backgroundColor: c.paper }}>
     <StatusBar barStyle="dark-content" />
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -57,18 +72,9 @@ export default function App() {
         <View style={{ backgroundColor: c.green, padding: 7, borderRadius: 10 }}><Icon name="sound" size={18} color={c.lime} /></View>
         <Text style={{ fontSize: 15, color: c.ink, fontWeight: '700', flexShrink: 1 }}>Conversation Companion</Text>
       </View>}
-      {status !== 'ready' ? <Page><Copy>{status === 'loading' ? 'Opening notebook…' : 'Your notebook could not be opened on this device.'}</Copy>
-        {status === 'error' && <Action label="Try again" onPress={() => void load()} />}</Page> :
-        screen === 'Notebook' ? <Notebook sessions={sessions} onNew={() => setScreen('Capture')} onOpen={s => { setCurrent(s.id); setAuto(false); setScreen('Detail'); }} /> :
-        screen === 'Capture' ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); setCurrent(s.id); setAuto(s.allowAI); setScreen('Detail'); if (s.allowAI) void generate(s); }} /> :
-        screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} auto={auto} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
-          onUpdate={persist} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
-        <Page><Heading>Preferences</Heading><CaptionSizeControl size={size} onChange={v => void changeSize(v)} />
-          {!!sizeError && <Copy alert>{sizeError}</Copy>}
-          <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.white }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
-          <View style={s.group}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
-            <Copy muted>{serviceUrl ? 'You choose whether to share the transcript for each session.' : 'Captions and saved sessions work independently. See the project README to connect Ollama for notes and questions.'}</Copy></View>
-        </Page>}
+      {browserTab ? <View style={{ flex: 1, minHeight: 0 }} role="tabpanel" id={mainTabPanelId} aria-labelledby={browserTab.id}>
+        {content}
+      </View> : content}
       {topLevel && status === 'ready' && <LiquidNavbar active={screen} onChange={setScreen} />}
     </KeyboardAvoidingView>
   </SafeAreaView></SafeAreaProvider>;

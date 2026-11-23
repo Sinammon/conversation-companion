@@ -3,15 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { GlassMaterial } from './glass-material';
 import { c, Icon } from './ui';
-
-const tabs = [{ name: 'Notebook', icon: 'book' }, { name: 'Preferences', icon: 'tune' }] as const;
-export type MainTab = typeof tabs[number]['name'];
+import { mainTabs, type MainTab } from './main-tabs';
 const inset = 5;
 
 export function LiquidNavbar({ active, onChange }: { active: MainTab; onChange: (tab: MainTab) => void }) {
   const [width, setWidth] = useState(0);
-  const cellWidth = Math.max(0, (width - inset * 2) / tabs.length);
-  const index = tabs.findIndex(tab => tab.name === active);
+  const cellWidth = Math.max(0, (width - inset * 2) / mainTabs.length);
+  const index = mainTabs.findIndex(tab => tab.name === active);
   const position = useSharedValue(index);
   useEffect(() => {
     position.set(withSpring(index, { damping: 24, stiffness: 320, overshootClamping: true, reduceMotion: ReduceMotion.System }));
@@ -22,7 +20,7 @@ export function LiquidNavbar({ active, onChange }: { active: MainTab; onChange: 
     onLayout={event => setWidth(event.nativeEvent.layout.width)}>
     <GlassMaterial />
     {cellWidth > 0 && <Animated.View pointerEvents="none" style={[styles.selection, { width: cellWidth }, highlight]} />}
-    {tabs.map(tab => {
+    {mainTabs.map(tab => {
       const selected = tab.name === active;
       const color = selected ? c.green : c.muted;
       return <Pressable key={tab.name} accessibilityRole="tab" accessibilityLabel={tab.name}
