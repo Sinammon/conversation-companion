@@ -20,7 +20,7 @@ async function readBody(request) {
   catch { throw new InputError('Expected a JSON request.'); }
 }
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   function send(status, body) {
     res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
@@ -57,4 +57,5 @@ http.createServer(async (req, res) => {
     send(error instanceof InputError ? 400 : 503, { error: error instanceof InputError ? error.message :
       'AI notes are unavailable. Check that Ollama is running with the configured model, then retry.' });
   } finally { active--; }
-}).listen(port, host, () => console.log('Companion notes service listening on http://' + host + ':' + port));
+});
+server.listen(port, host, () => console.log('Companion notes service listening on http://' + host + ':' + server.address().port));

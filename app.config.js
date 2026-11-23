@@ -7,6 +7,7 @@ module.exports = {
     slug: 'conversation-companion',
     version: '0.1.0',
     scheme: 'conversationcompanion',
+    icon: './assets/icon.png',
     orientation: 'default',
     userInterfaceStyle: 'light',
     ios: {
