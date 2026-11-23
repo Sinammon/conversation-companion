@@ -1,5 +1,17 @@
 import { test, expect } from '@playwright/test';
 
+test('shows iPhone Safari setup when the browser does not expose speech recognition', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'SpeechRecognition', { value: undefined, configurable: true });
+    Object.defineProperty(window, 'webkitSpeechRecognition', { value: undefined, configurable: true });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New session' }).click();
+  await page.getByRole('checkbox', { name: /Everyone agrees/ }).check();
+  await page.getByRole('button', { name: 'Start live captions' }).click();
+  await expect(page.getByRole('alert')).toContainText('On iPhone, turn on Siri in Settings');
+});
+
 test('consent, live captions, local save, reopen and deletion', async ({ page }) => {
   // Development fixture at the browser speech boundary. No microphone or sample data in the app.
   await page.addInitScript(() => {

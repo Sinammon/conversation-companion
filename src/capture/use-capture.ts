@@ -83,7 +83,11 @@ export function useCapture() {
     setError('');
     change('permission');
     try {
-      if (!speech.isRecognitionAvailable()) throw new Error('Speech recognition is unavailable. Enable a speech service on this device, or try another device.');
+      if (!speech.isRecognitionAvailable()) {
+        throw new Error(Platform.OS === 'web'
+          ? 'This browser does not expose speech recognition. On iPhone, turn on Siri in Settings, open this page directly in Safari, and reload. On a computer, try Chrome.'
+          : 'Speech recognition is unavailable. Enable a speech service on this device, or try another device.');
+      }
       const permission = await speech.requestPermissionsAsync();
       if (!mounted.current) return;
       if (!permission.granted) throw new Error('Allow microphone and speech access in Settings, then try again.');
