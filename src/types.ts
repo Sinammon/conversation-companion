@@ -11,5 +11,6 @@ export type Session = {
   durationMs: number;
   captions: Caption[];
   allowAI: boolean;
+  approvedUrl?: string;
   notes?: Notes;
 };

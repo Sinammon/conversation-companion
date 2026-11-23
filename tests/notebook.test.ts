@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { schema, writeSession, listSessions, removeSession } from '../src/storage/sql.ts';
+import { schema, writeSession, listSessions, removeSession, writeNotes } from '../src/storage/sql.ts';
 
 test('a saved session reopens, updates by id, lists newest first, and can be deleted', () => {
   const db = new DatabaseSync(':memory:');
@@ -13,5 +13,19 @@ test('a saved session reopens, updates by id, lists newest first, and can be del
   assert.deepEqual(db.prepare(listSessions).all().map(x => JSON.parse(x.data as string).title), ['B', 'Updated']);
   db.prepare(removeSession).run('recent');
   assert.equal(db.prepare(listSessions).all().length, 1);
+  db.close();
+});
+
+test('a completed background notes job only updates a surviving session with matching consent', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(schema);
+  const doc = { allowAI: true, approvedUrl: 'http://one.local' };
+  db.prepare(writeSession).run('chosen', 1, JSON.stringify(doc));
+  const update = db.prepare(writeNotes);
+  assert.equal(update.run('{}', 'chosen', 'http://two.local').changes, 0);
+  assert.equal(update.run('{"summary":"Saved"}', 'chosen', doc.approvedUrl).changes, 1);
+  assert.equal(JSON.parse(db.prepare(listSessions).get()!.data as string).notes.summary, 'Saved');
+  db.prepare(removeSession).run('chosen');
+  assert.equal(update.run('{}', 'chosen', doc.approvedUrl).changes, 0);
   db.close();
 });

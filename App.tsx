@@ -7,6 +7,7 @@ import { Notebook } from './src/screens/notebook';
 import { Detail } from './src/screens/detail';
 import { loadSessions, saveSession, deleteSession, loadSize, saveSize } from './src/storage/notebook';
 import { serviceUrl } from './src/ai/client';
+import { useNotes } from './src/ai/use-notes';
 import type { Session } from './src/types';
 
 type Screen = 'Notebook' | 'Preferences' | 'Capture' | 'Detail';
@@ -14,6 +15,7 @@ const sizes = { Standard: 21, Large: 26, Largest: 34 };
 export default function App() {
   const [screen, setScreen] = useState<Screen>('Notebook');
   const [sessions, setSessions] = useState<Session[]>([]);
+  const { jobs, generate } = useNotes((id, notes) => setSessions(previous => previous.map(s => s.id === id ? { ...s, notes } : s)));
   const [current, setCurrent] = useState('');
   const [auto, setAuto] = useState(false);
   const [size, setSize] = useState(26);
@@ -58,8 +60,8 @@ export default function App() {
       {status !== 'ready' ? <Page><Copy>{status === 'loading' ? 'Opening notebook…' : 'Your notebook could not be opened on this device.'}</Copy>
         {status === 'error' && <Action label="Try again" onPress={() => void load()} />}</Page> :
         screen === 'Notebook' ? <Notebook sessions={sessions} onNew={() => setScreen('Capture')} onOpen={s => { setCurrent(s.id); setAuto(false); setScreen('Detail'); }} /> :
-        screen === 'Capture' ? <Capture size={size} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); setCurrent(s.id); setAuto(s.allowAI); setScreen('Detail'); }} /> :
-        screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} auto={auto} onBack={() => setScreen('Notebook')}
+        screen === 'Capture' ? <Capture size={size} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); setCurrent(s.id); setAuto(s.allowAI); setScreen('Detail'); if (s.allowAI) void generate(s); }} /> :
+        screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} auto={auto} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
           onUpdate={persist} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
         <Page><Heading>Preferences</Heading><View style={s.group}><Label>Caption size</Label>
           <Choices values={['Standard', 'Large', 'Largest']} selected={size === 21 ? 'Standard' : size === 34 ? 'Largest' : 'Large'} onChange={v => void changeSize(v)} /></View>

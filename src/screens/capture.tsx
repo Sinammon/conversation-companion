@@ -4,7 +4,13 @@ import { Action, c, Choices, Copy, formatTime, Heading, Icon, Label, Page, s } f
 import { useCapture } from '../capture/use-capture';
 import { finish } from '../capture/transcript';
 import { serviceUrl } from '../ai/client';
+import { useKeepAwake } from 'expo-keep-awake';
 import type { Mode, Session } from '../types';
+
+function KeepScreenAwake() {
+  useKeepAwake('conversation-companion-capture', { suppressDeactivateWarnings: true });
+  return null;
+}
 
 function Check({ value, toggle, title, detail }: { value: boolean; toggle: () => void; title: string; detail?: string }) {
   return <Pressable accessibilityRole="checkbox" aria-checked={value} accessibilityState={{ checked: value }} accessibilityLabel={[title, detail].filter(Boolean).join('. ')}
@@ -45,6 +51,11 @@ export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: 
     const last = cap.transcript.final.at(-1);
     if (last && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibilityWithOptions(last.text, { queue: true });
   }, [cap.transcript.final]);
+  React.useEffect(() => {
+    if (cap.phase === 'paused' && Platform.OS === 'ios') {
+      AccessibilityInfo.announceForAccessibility('Microphone off. Resume captions or save the session.');
+    }
+  }, [cap.phase]);
   async function save() {
     if (!stopped || !captions.length || lock.current) return;
     lock.current = true;
@@ -52,7 +63,7 @@ export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: 
     setSaveError('');
     const date = cap.startedAt.current;
     try {
-      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI, captions,
+      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI, approvedUrl: allowAI ? serviceUrl : undefined, captions,
         title: title.trim() || mode + ' · ' + new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
     } catch {
       setSaveError('Could not save on this device. Your captions are still here. Try saving again.');
@@ -62,6 +73,7 @@ export function Capture({ onExit, onSave, size }: { onExit: () => void; onSave: 
   }
   const status = ({ ready: 'Ready', permission: 'Checking permission…', starting: 'Opening microphone…', listening: 'Listening', stopping: 'Finishing captions…', paused: 'Microphone off' })[cap.phase];
   return <View style={{ flex: 1 }}>
+    {(cap.phase === 'starting' || cap.phase === 'listening') && <KeepScreenAwake />}
     <View style={{ alignSelf: 'flex-start', paddingLeft: 12 }}><Action label={capturing ? 'Leave session' : 'Notebook'} secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} /></View>
     {!capturing ? <Page>
       <Heading>New session</Heading>

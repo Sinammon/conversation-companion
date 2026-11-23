@@ -25,3 +25,11 @@ Sources checked November 23, 2026 — [Expo speech module](https://github.com/ja
 ## Development skills
 
 Superpowers supplies the plan, test-first loop and final verification. Expo guides native development builds and feature boundaries. Impeccable, Minimalist UI and Taste inform typography, consistent edges, clear controls and minimal copy. Native accessibility takes priority over web-only hover and entrance effects.
+
+| Source | Skills used |
+| --- | --- |
+| [Superpowers](https://github.com/obra/superpowers/tree/22f0b463e7a5e579904dd6211a520321035526f7/skills) | Writing plans, executing plans, test-driven development, requesting review, verification and branch completion |
+| [Impeccable](https://github.com/pbakaus/impeccable) | Installed version 4.8.0, native design and accessibility guidance |
+| [Expo skills](https://github.com/expo/skills/tree/88d9bd79f3fa8452a778fbac65bae162c0b32ce4/plugins/expo/skills) | Native UI, project structure and development clients |
+| [Minimalist UI](https://github.com/caezium/skills/tree/51df0127851fe0a4b8443904054a898873533648/minimalist-ui) | Editorial typography, muted surfaces and readable spacing |
+| [Taste](https://github.com/leonxlnx/taste-skill/tree/6c0b5c78f5d31776e2210305abaa210cdc0030bf/skills/taste-skill) | Consistent alignment, hierarchy, meaningful copy and rendered visual review |

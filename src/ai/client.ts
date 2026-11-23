@@ -1,9 +1,10 @@
 import type { Answer, Notes, Session } from '../types';
+import { isApproved } from './consent';
 
 export const serviceUrl = (process.env.EXPO_PUBLIC_AI_URL ?? '').trim().replace(/\/+$/, '');
 
 async function request<T>(path: string, session: Session, question?: string): Promise<T> {
-  if (!session.allowAI || !serviceUrl) throw new Error('Enable AI for this session and configure the notes service first.');
+  if (!isApproved(session, serviceUrl)) throw new Error('Approve this notes service for the session first.');
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 600000);
   try {

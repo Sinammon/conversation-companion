@@ -1,6 +1,6 @@
 import { openDatabaseAsync } from 'expo-sqlite';
-import type { Session } from '../types';
-import { schema, listSessions, writeSession, removeSession } from './sql';
+import type { Notes, Session } from '../types';
+import { schema, listSessions, writeSession, removeSession, writeNotes } from './sql';
 
 async function open() {
   const db = await openDatabaseAsync('companion.db');
@@ -20,6 +20,9 @@ export async function saveSession(session: Session) {
 }
 export async function deleteSession(id: string) {
   await (await database()).runAsync(removeSession, id);
+}
+export async function saveNotes(id: string, notes: Notes, url: string) {
+  return (await (await database()).runAsync(writeNotes, JSON.stringify(notes), id, url)).changes > 0;
 }
 export async function loadSize() {
   return (await (await database()).getFirstAsync<{ size: number }>('SELECT size FROM preferences WHERE id=1'))?.size ?? 26;

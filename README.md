@@ -2,6 +2,8 @@
 
 An accessible live-caption notebook for lectures and meetings. Start with everyone's consent, read speech as it arrives, then stop and save the transcript on your device. Connect the optional local AI service to generate notes and ask questions with supporting excerpts.
 
+<img src="docs/notebook.png" width="280" alt="Mobile notebook with an action to start a conversation and a list of saved sessions">
+
 ## Run the app
 
 Install **Node.js 24 LTS** (24.3 or newer), Git, and the native tools for your target. These commands work in PowerShell, Terminal and other standard shells.
@@ -20,6 +22,8 @@ npm ci
 | Browser on Windows or Mac | Run `npm run web` and open the localhost link. Microphone support depends on the browser's Web Speech API and speech service. Chrome is suitable for trying the interface. Browser sessions use local storage. |
 
 After installing a development build, run `npm start` and open its Metro link. Rebuild after changing a native plugin, app permission, or Android HTTP transport setting. The speech module requires a development build on phones. Expo Go lacks that module.
+
+For an existing generated Android project, run `npx expo prebuild --platform android` before rebuilding to apply changed app configuration.
 
 ### First session
 
@@ -52,7 +56,7 @@ Choose **Generate AI notes after saving** to opt in for one session. Previously 
 - Captions use the configured system speech recognizer in US English. The recognizer may send audio to its provider. This app disables audio-file persistence. Availability, accuracy, and session length depend on the device, locale and service. Android 12 and earlier can end recognition after each utterance.
 - Recording stops when the app enters the background. Save before closing the app. Unsaved capture is held in memory.
 - Native sessions and preferences are stored in local SQLite in the app sandbox. Device backup policies may apply. Delete a session from its transcript view. The repository does not sync classmates' notes.
-- Only an opted-in transcript and its question are sent to the configured notes service. The service keeps requests in memory, checks returned quotes and sends no application-level transcript logs. Long transcripts are split into chunks, up to 200,000 characters per request. Q&A returns the first supported answer it finds.
+- Transcript sharing is approved for a specific service address. Changing the address requires fresh consent. The service keeps requests in memory, checks returned quotes and sends no application-level transcript logs. Long transcripts are split into chunks, up to 200,000 characters per request. Q&A considers evidence across chunks, including later corrections.
 
 ## Develop together
 
@@ -68,5 +72,7 @@ npx playwright test
 ```
 
 GitHub Actions runs these checks on pushes and pull requests. Browser tests inject synthetic speech events, and service tests inject Ollama responses. These fixtures live under `tests/`. To verify the real hardware and model, use the [device test procedure](docs/device-check.md).
+
+The **Real model smoke test** workflow can be run manually from GitHub Actions. It downloads the configured model in an isolated runner and checks real notes and an answer against a short synthetic meeting transcript. With the service and model running locally, the equivalent command is `node --test tests/model/ollama.smoke.mjs`.
 
 The app entry is `App.tsx`. Shared controls live in `src/components`, views in `src/screens`, speech lifecycle in `src/capture`, and persistence in `src/storage`. The mobile AI client lives in `src/ai` and calls the separate Node service in `server/`. The [technical plan](docs/superpowers/plans/2026-11-23-conversation-companion.md) covers speech costs, decisions, and testing.

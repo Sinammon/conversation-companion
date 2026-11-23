@@ -1,0 +1,25 @@
+name: Real model smoke test
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  ollama:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      ollama:
+        image: ollama/ollama:0.12.11
+        ports:
+          - 11434:11434
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Load the configured local model
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-connrefused http://localhost:11434/api/pull -d '{"model":"qwen2.5:3b","stream":false}'
+      - name: Verify generated notes and a cited answer from synthetic speech
+        run: |
+          node server/index.mjs &
+          node --test tests/model/ollama.smoke.mjs

@@ -35,6 +35,20 @@ test('chunks keep the end of long input and split very long utterances', () => {
   assert.ok(parts.every(part => part.length <= 6000));
   assert.match(parts.at(-1), /LAST/);
 });
+test('a later correction is considered before answering across chunks', async () => {
+  const old = 'Our first plan was Tuesday.';
+  const change = 'Correction, the meeting is Friday.';
+  const long = old + '\n' + 'Background. '.repeat(560) + '\n' + change;
+  const result = await assist('ask', { transcript: long, mode: 'Meeting', question: 'When is the meeting?' },
+    async (_rules, data) => {
+      if (data.evidence) {
+        assert.deepEqual(data.evidence.map(e => e.quote), [old, change]);
+        return { answer: 'Friday.', quote: change };
+      }
+      return data.transcript.includes(change) ? { answer: 'Friday.', quote: change } : { answer: 'Tuesday.', quote: old };
+    });
+  assert.equal(result.quote, change);
+});
 test('rejects empty transcripts before contacting the model', async () => {
   await assert.rejects(assist('notes', { transcript: ' ', mode: 'Lecture' }, () => assert.fail()), /transcript/i);
 });
