@@ -21,6 +21,8 @@ npm ci
 | iOS from Windows | Develop the shared TypeScript code locally. For a signed iPhone development build, use an Expo account and Apple device-signing credentials, then run `npx eas-cli@latest build:configure` and `npx eas-cli@latest build --platform ios --profile development`. Install the build on the registered device. [Expo development builds](https://docs.expo.dev/develop/development-builds/create-a-build/) |
 | Browser on Windows or Mac | Run `npm run web` and open the localhost link. Microphone support depends on the browser's Web Speech API and speech service. Chrome is suitable for trying the interface. Browser sessions use local storage. |
 
+For a standalone preview on an ARM64 Android phone, download the APK artifact from a successful [Build Android preview run](https://github.com/Sinammon/conversation-companion/actions/workflows/android-preview.yml), unzip it, and open the APK on your phone. This preview uses Expo's generated development signing key and bundles the JavaScript so Metro is unnecessary. A maintainer can run the workflow with a notes-service URL to enable AI for that build. The URL becomes public. Store releases require your own signing credentials.
+
 After installing a development build, run `npm start` and open its Metro link. Rebuild after changing a native plugin, app permission, or Android HTTP transport setting. The speech module requires a development build on phones. Expo Go lacks that module.
 
 For an existing generated Android project, run `npx expo prebuild --platform android` before rebuilding to apply changed app configuration.
