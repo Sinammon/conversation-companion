@@ -1,41 +1,62 @@
 import { expect, test } from '@playwright/test';
 
-test('opt-in, note persistence after navigation, and a cited transcript answer', async ({ page }) => {
+test('demo opt-in, note persistence after navigation, and cited and unanswered questions', async ({ page }) => {
   const url = process.env.EXPO_PUBLIC_AI_URL?.replace(/\/+$/, '');
   test.skip(!url, 'Export with EXPO_PUBLIC_AI_URL set to exercise the AI screen with a development fixture.');
-  const title = 'Development fixture meeting';
   const quote = 'The lab meets Thursday.';
-  const record = { id: 'fixture', title, startedAt: 1, mode: 'Meeting', durationMs: 2000,
-    allowAI: false, captions: [{ text: quote, at: 200 }] };
-  await page.addInitScript(session => {
-    const key = 'conversation-companion.session.fixture';
-    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(session));
-  }, record);
-  const source = { text: 'Meet Thursday.', quote };
+  const summary = 'Maya will bring the notebook.';
+  const transcript = quote + '\n' + summary;
+  const cannedNotes = { summary, sections: [{ heading: 'Action items', items: [{ text: summary, quote: summary }] }] };
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   await page.route(url + '/notes', async route => {
     await gate;
-    await route.fulfill({ json: { summary: 'Meet Thursday.', sections: [{ heading: 'Decisions', items: [source] }] } });
+    await route.fulfill({ json: cannedNotes });
   });
-  await page.route(url + '/ask', route => route.fulfill({ json: { answer: 'Thursday.', quote } }));
+  await page.route(url + '/ask', route => {
+    const body = route.request().postDataJSON();
+    expect(body).toMatchObject({ approvedProvider: 'gemini', demoId: 'meeting', transcript });
+    return route.fulfill({ json: body.question === 'When does the lab meet?'
+      ? { answer: 'Thursday.', quote }
+      : { answer: 'There is not enough information in this transcript to answer that question.', quote: null } });
+  });
   await page.goto('/');
-  await page.getByRole('button', { name: new RegExp(title) }).click();
+  await page.getByRole('button', { name: 'Meeting demo' }).click();
   await page.getByRole('radio', { name: 'Notes' }).click();
-  await expect(page.getByText('Use AI for this session?')).toBeVisible();
-  await page.getByRole('button', { name: 'Allow transcript sharing' }).click();
+  await expect(page.getByText(/Send this made-up transcript to Google Gemini/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate notes' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Allow sharing with Google Gemini' }).click();
   const request = page.waitForRequest(url + '/notes');
   await page.getByRole('button', { name: 'Generate notes' }).click();
-  expect((await request).postDataJSON()).toMatchObject({ mode: 'Meeting', transcript: quote });
+  expect((await request).postDataJSON()).toMatchObject({ approvedProvider: 'gemini', demoId: 'meeting', mode: 'Meeting', transcript });
   await page.getByRole('button', { name: 'Notebook' }).click();
   release();
-  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('conversation-companion.session.fixture')!).notes?.summary)).toBe('Meet Thursday.');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('conversation-companion.session.gemini-demo-meeting')!).notes?.summary)).toBe(summary);
   await page.reload();
-  await page.getByRole('button', { name: new RegExp(title) }).click();
-  await expect(page.getByRole('heading', { name: 'Decisions' })).toBeVisible();
+  await page.getByRole('button', { name: 'Meeting demo' }).click();
+  await expect(page.getByRole('heading', { name: 'Action items' })).toBeVisible();
   await page.getByRole('radio', { name: 'Ask' }).click();
-  await page.getByLabel('Your question about the transcript').fill('When is the lab?');
-  await page.getByRole('button', { name: 'Ask question' }).click();
+  await page.getByRole('button', { name: 'When does the lab meet?' }).click();
   await expect(page.getByText('Thursday.', { exact: true })).toBeVisible();
   await expect(page.getByText('“' + quote + '”')).toBeVisible();
+  await page.getByRole('button', { name: 'Where is the lab meeting?' }).click();
+  await expect(page.getByText(/There is not enough information/)).toBeVisible();
+  await expect(page.getByText('“' + quote + '”')).toHaveCount(0);
+});
+
+test('a regular saved session keeps old notes readable and cannot share a transcript during the pilot', async ({ page }) => {
+  await page.addInitScript(() => {
+    const quote = 'An existing transcript stays on the device.';
+    localStorage.setItem('conversation-companion.session.existing', JSON.stringify({
+      id: 'existing', title: 'Existing session', startedAt: 1, mode: 'Lecture', durationMs: 2000,
+      allowAI: true, approvedUrl: 'http://127.0.0.1:8787', captions: [{ text: quote, at: 0 }],
+      notes: { summary: quote, sections: [] },
+    }));
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: /Existing session/ }).click();
+  await expect(page.getByText('An existing transcript stays on the device.')).toBeVisible();
+  await page.getByRole('radio', { name: 'Ask' }).click();
+  await expect(page.getByText('Gemini is available for the two demo sessions.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Allow sharing with Google Gemini' })).toHaveCount(0);
 });

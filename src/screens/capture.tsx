@@ -3,7 +3,6 @@ import { AccessibilityInfo, BackHandler, Linking, Platform, Pressable, ScrollVie
 import { Action, c, Choices, Copy, formatTime, Heading, Icon, Label, Page, s } from '../components/ui';
 import { useCapture } from '../capture/use-capture';
 import { finish } from '../capture/transcript';
-import { serviceUrl } from '../ai/client';
 import { useKeepAwake } from 'expo-keep-awake';
 import { CaptionSizeControl } from '../components/caption-size';
 import type { CaptionSize } from '../components/caption-size';
@@ -29,7 +28,6 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
 }) {
   const cap = useCapture();
   const [consent, setConsent] = useState(false);
-  const [allowAI, setAllowAI] = useState(false);
   const [mode, setMode] = useState<Mode>('Lecture');
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -71,7 +69,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     setSaveError('');
     const date = cap.startedAt.current;
     try {
-      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI, approvedUrl: allowAI ? serviceUrl : undefined, captions,
+      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI: false, captions,
         title: title.trim() || mode + ' · ' + new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
     } catch {
       setSaveError('Could not save on this device. Your captions are still here. Try saving again.');
@@ -92,7 +90,6 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         <View style={s.row}><Icon name="shield" size={19} /><Label>Before you start</Label></View>
         <Copy muted>Your device’s speech service may process audio online. This app saves transcript text on this device and does not keep audio files.</Copy>
         <Check value={consent} toggle={() => setConsent(!consent)} title="Everyone agrees to transcription." />
-        {!!serviceUrl && <Check value={allowAI} toggle={() => setAllowAI(!allowAI)} title="Generate AI notes after saving" detail={'Send transcript text to ' + serviceUrl + ' for notes and questions.'} />}
       </View>
       {!!cap.error && <Copy alert>{cap.error}</Copy>}
       {!!cap.error && Platform.OS !== 'web' && <Action secondary label="Open device settings" onPress={() => { void Linking.openSettings().catch(() => {}); }} />}

@@ -44,7 +44,7 @@ export async function assist(task, input, generate) {
       if (grounded(result, chunk) && hasText(result.answer)) evidence.push({ answer: result.answer.trim(), quote: result.quote.trim() });
       continue;
     }
-    const result = await generate(rules + ' Write concise student notes. Each item has a section, a paraphrase or study question in text, and a verbatim supporting quote. Omit unsupported sections. Never invent decisions, owners, or deadlines.',
+    const result = await generate(rules + ' Write concise notes. State action items as commitments and preserve each named owner. Write questions only in Study prompts. Each item has a section, text, and a verbatim supporting quote. Omit unsupported sections. Never invent decisions, owners, or deadlines.',
       { mode, sections: headings[mode], transcript: chunk }, noteFormat(headings[mode]));
     if (!Array.isArray(result?.items)) throw new Error('The model returned unreadable notes. Please retry.');
     for (const item of result.items) {

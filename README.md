@@ -36,9 +36,11 @@ For an existing generated Android project, run `npx expo prebuild --platform and
 3. Read the interim text as it settles into the transcript. **Pause auto-scroll** lets you read an earlier passage. If recognition stops, the app shows **Microphone off** and offers **Resume captions**.
 4. Use **Caption size** in the live reader or **Preferences** to adjust live and saved captions. Tap **Stop microphone**, then **Save session**. Reopen it from **My notebook**.
 
+If iPhone Safari says speech recognition is unavailable, turn on Siri under **Settings → Siri** or **Apple Intelligence & Siri**, then reload the app page in Safari. Tap **Allow** if prompted for microphone access. Safari uses the device's speech recognizer for captions. [WebKit speech recognition](https://webkit.org/blog/11648/new-webkit-features-in-safari-14-1/#web-speech-api)
+
 ## Connect AI notes and Q&A
 
-Install [Ollama](https://ollama.com/download) on a computer you control and run `ollama pull qwen2.5:3b`. Start Ollama from its application or with `ollama serve`. In the project root, copy `.env.example` to `.env` (PowerShell: `Copy-Item .env.example .env`; macOS: `cp .env.example .env`).
+Create an API key in [Google AI Studio](https://aistudio.google.com/apikey). Copy `.env.example` to `.env` if you don't already have one. Add the key to `GEMINI_API_KEY` in that private file on your PC. The server defaults to `gemini-3.1-flash-lite`. Google may use free-tier inputs to improve its products, so the pilot accepts only the two made-up conversations and their preset questions. [Gemini pricing and data use](https://ai.google.dev/gemini-api/docs/pricing)
 
 Choose an address reachable **from the phone** before building the app.
 
@@ -47,20 +49,20 @@ Choose an address reachable **from the phone** before building the app.
 | Local browser or iOS simulator | `EXPO_PUBLIC_AI_URL=http://localhost:8787` and `HOST=127.0.0.1` |
 | Android phone over USB | Same values. Run `adb reverse tcp:8787 tcp:8787` while the phone is connected. |
 | Android Studio emulator | `EXPO_PUBLIC_AI_URL=http://10.0.2.2:8787` and `HOST=127.0.0.1` |
-| Physical phone on trusted Wi-Fi | Set `HOST=0.0.0.0` and use the computer's private LAN address for `EXPO_PUBLIC_AI_URL`, for example `http://192.168.1.20:8787`. A Mac's `.local` hostname also works on supported networks. Allow the service through the computer's private-network firewall and grant local network access on iOS. |
+| Physical phone on trusted Wi-Fi | Set `HOST` to the PC's LAN IP and `EXPO_PUBLIC_AI_URL` to that address with port 8787. For example, set `HOST=192.168.1.20` and `EXPO_PUBLIC_AI_URL=http://192.168.1.20:8787`. Set `WEB_ORIGINS=http://localhost:8081,http://192.168.1.20:8081` so both desktop and phone browsers work. Use the address and port Expo prints. |
 
-Run `npm run server` in one terminal and restart Metro in another. Android development builds using local HTTP must be built with that URL configured. The public environment variable contains only the service URL. The Node service contacts Ollama at loopback by default. Its HTTP endpoints lack user accounts and are intended for trusted development networks. For remote access, place authentication and HTTPS in front of the service.
+Run `npm run server` in one terminal and `npm run web -- --lan` in another. Allow Node through the PC's firewall on the trusted network. The PC and phone must be on the same Wi-Fi. Open the Expo LAN URL on the phone and keep the PC running. Android development builds using local HTTP must be built with that URL configured. The app receives only the service URL. The Node server sends the key to Google.
 
-Open the service's `/health` URL from the phone browser to check connectivity. For example, localhost development uses [the local health endpoint](http://localhost:8787/health). This checks the Node service. Run `ollama list` on the host to verify that the configured model is installed. For a browser running on another origin, set `WEB_ORIGIN` to its exact scheme, host and port and restart the service.
+Open the service address with `/health` appended in Safari to check connectivity. `missing-key` means the running server could not load a key. `ready` means the key is configured. Generate demo notes to verify that Google accepts it. For a browser running on another origin, add its exact scheme, host and port to `WEB_ORIGINS` and restart the server.
 
-Choose **Generate AI notes after saving** to opt in for one session. Previously saved sessions can opt in from **Notes** or **Ask**. Lecture notes group concepts, examples and study prompts. Meeting notes group discussion, decisions and actions. The service checks supporting excerpts against the transcript and can return an insufficient-evidence answer. Check a generated interpretation against its displayed excerpt. Generation failures leave the saved transcript available for retry.
+From **My notebook**, open **Lecture demo** or **Meeting demo**, then choose **Notes → Allow sharing with Google Gemini → Generate notes**. Open **Ask** for the preset questions. Lecture notes group concepts, examples and study prompts. Meeting notes group discussion, decisions and actions. The service checks excerpts against the transcript and can return an insufficient-evidence answer. Regular recordings and previously saved notes remain readable on the device.
 
 ## Data and device behavior
 
 - Captions use the configured system speech recognizer in US English. The recognizer may send audio to its provider. This app disables audio-file persistence. Availability, accuracy, and session length depend on the device, locale and service. Android 12 and earlier can end recognition after each utterance.
 - Recording stops when the app enters the background. Save before closing the app. Unsaved capture is held in memory.
 - Native sessions and preferences are stored in local SQLite in the app sandbox. Device backup policies may apply. Delete a session from its transcript view. The repository does not sync classmates' notes.
-- Transcript sharing is approved for a specific service address. Changing the address requires fresh consent. The service keeps requests in memory, checks returned quotes and sends no application-level transcript logs. Long transcripts are split into chunks, up to 200,000 characters per request. Q&A considers evidence across chunks, including later corrections.
+- Demo sharing requires approval for the configured service address and Google Gemini. Changing the address requires fresh consent. The service checks returned quotes and sends no application-level transcript logs.
 
 ## Develop together
 
@@ -75,9 +77,9 @@ npx playwright install chromium
 npx playwright test
 ```
 
-GitHub Actions runs these checks on pushes and pull requests. Browser tests inject synthetic speech events, and service tests inject Ollama responses. These fixtures live under `tests/`. To verify the real hardware and model, use the [device test procedure](docs/device-check.md).
+GitHub Actions runs these checks on pushes and pull requests. Browser tests inject synthetic speech events and service tests inject Gemini responses. These fixtures live under `tests/`. To verify the real hardware and model, use the [device test procedure](docs/device-check.md).
 
-The **Real model smoke test** workflow can be run manually from GitHub Actions. It downloads the configured model in an isolated runner and checks real notes and an answer against a short synthetic meeting transcript. With the service and model running locally, the equivalent command is `node --test tests/model/ollama.smoke.mjs`.
+The **Real model smoke test** workflow uses a GitHub Actions secret named `GEMINI_API_KEY`. To check both demos using the key in your local `.env`, run `node --env-file=.env --test tests/model/gemini.smoke.mjs`.
 
 The app entry is `App.tsx`. Shared controls live in `src/components`, views in `src/screens`, speech lifecycle in `src/capture`, and persistence in `src/storage`. The mobile AI client lives in `src/ai` and calls the separate Node service in `server/`. The [technical plan](docs/superpowers/plans/2026-11-23-conversation-companion.md) covers speech costs, decisions, and testing.
 

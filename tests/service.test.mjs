@@ -1,39 +1,106 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
 import { once } from 'node:events';
-import { spawn } from 'node:child_process';
+import { createNotesServer } from '../server/service.mjs';
 
-test('HTTP service calls the Ollama chat contract, verifies evidence and handles model failure', async t => {
-  // A local development fixture exercises the wire protocol without a model download.
-  const quote = 'The next lab is Thursday.';
-  let offline = false;
-  let modelRequest;
-  const fixture = http.createServer(async (req, res) => {
-    const parts = [];
-    for await (const chunk of req) parts.push(chunk);
-    modelRequest = { path: req.url, body: JSON.parse(Buffer.concat(parts).toString()) };
-    res.writeHead(offline ? 503 : 200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ message: { content: JSON.stringify({ answer: 'Thursday.', quote }) } }));
+const desktopOrigin = 'http://localhost:8081';
+const phoneOrigin = 'http://10.0.0.207:8081';
+const body = {
+  approvedProvider: 'gemini',
+  demoId: 'meeting',
+  mode: 'Meeting',
+  transcript: 'The lab meets Thursday.\nMaya will bring the notebook.',
+  question: 'When does the lab meet?',
+};
+const quote = 'The lab meets Thursday.';
+const answer = { answer: 'Thursday.', quote };
+const modelReply = text => Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text }] } }] });
+
+async function open(t, options = {}) {
+  const calls = [];
+  const server = createNotesServer({
+    key: 'test-only-key', model: 'gemini-3.1-flash-lite', origins: [desktopOrigin, phoneOrigin],
+    ...options,
+    fetchModel: async (...args) => {
+      calls.push(args);
+      return options.fetchModel ? options.fetchModel(...args) : modelReply(JSON.stringify(answer));
+    },
   });
-  fixture.listen(0, '127.0.0.1');
-  await once(fixture, 'listening');
-  t.after(() => fixture.close());
-  const service = spawn(process.execPath, ['server/index.mjs'], { env: { ...process.env, HOST: '127.0.0.1', PORT: '0',
-    OLLAMA_URL: 'http://127.0.0.1:' + fixture.address().port, OLLAMA_MODEL: 'development-fixture' }, stdio: ['ignore', 'pipe', 'pipe'] });
-  t.after(() => service.kill());
-  const [startup] = await once(service.stdout, 'data', { signal: AbortSignal.timeout(15000) });
-  const url = startup.toString().match(/http:\/\/127\.0\.0\.1:\d+/)[0];
-  const post = (headers = {}) => fetch(url + '/ask', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify({ transcript: quote, mode: 'Lecture', question: 'When is the lab?' }) });
-  const response = await post();
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.close());
+  const url = 'http://127.0.0.1:' + server.address().port;
+  const post = (override = {}, origin = phoneOrigin, path = '/ask') => fetch(url + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ ...body, ...override }),
+  });
+  return { calls, post, url };
+}
+
+test('both configured browser origins can preflight and ask Gemini for a cited answer', async t => {
+  const { calls, post, url } = await open(t);
+  for (const origin of [desktopOrigin, phoneOrigin]) {
+    const preflight = await fetch(url + '/ask', { method: 'OPTIONS', headers: {
+      Origin: origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type',
+    } });
+    assert.equal(preflight.status, 200);
+    assert.equal(preflight.headers.get('access-control-allow-origin'), origin);
+    assert.equal(preflight.headers.get('vary'), 'Origin');
+    const response = await post({}, origin);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('access-control-allow-origin'), origin);
+    assert.deepEqual(await response.json(), answer);
+  }
+  const [endpoint, request] = calls[0];
+  assert.equal(String(endpoint), 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent');
+  assert.equal(request.headers['x-goog-api-key'], 'test-only-key');
+  const input = JSON.parse(request.body);
+  assert.equal(input.generationConfig.responseMimeType, 'application/json');
+  assert.equal(input.generationConfig.responseJsonSchema.type, 'object');
+  assert.deepEqual(JSON.parse(input.contents[0].parts[0].text), { transcript: body.transcript, question: body.question });
+});
+
+test('Gemini notes preserve the Meeting action and supporting quote', async t => {
+  const quote = 'Maya will bring the notebook.';
+  const { post } = await open(t, { fetchModel: () => modelReply(JSON.stringify({
+    items: [{ section: 'Action items', text: quote, quote }],
+  })) });
+  const response = await post({ question: undefined }, phoneOrigin, '/notes');
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { answer: 'Thursday.', quote });
-  assert.equal(modelRequest.path, '/api/chat');
-  assert.equal(modelRequest.body.stream, false);
-  assert.equal(modelRequest.body.model, 'development-fixture');
-  assert.equal(modelRequest.body.format.type, 'object');
-  assert.equal((await post({ Origin: 'https://unrelated.example' })).status, 403);
-  offline = true;
-  assert.equal((await post()).status, 503);
+  const notes = await response.json();
+  assert.equal(notes.summary, quote);
+  assert.deepEqual(notes.sections[2], { heading: 'Action items', items: [{ text: quote, quote }] });
+});
+
+test('foreign origins, legacy approvals, real transcripts, and free-form questions never reach Gemini', async t => {
+  const { calls, post, url } = await open(t);
+  const foreign = 'https://unrelated.example';
+  assert.equal((await fetch(url + '/ask', { method: 'OPTIONS', headers: { Origin: foreign } })).status, 403);
+  assert.equal((await post({}, foreign)).status, 403);
+  assert.equal((await post({ approvedProvider: undefined })).status, 409);
+  assert.equal((await post({ approvedProvider: 'ollama' })).status, 409);
+  assert.equal((await post({ transcript: body.transcript + '\nDifferent content.' })).status, 400);
+  assert.equal((await post({ question: 'Unlisted question?' })).status, 400);
+  assert.equal((await post({ demoId: 'other' })).status, 400);
+  assert.equal(calls.length, 0);
+});
+
+test('missing key, quota, timeout and invalid output return useful errors', async t => {
+  for (const scenario of [
+    { options: { key: '' }, status: 503, message: /GEMINI_API_KEY/, calls: 0 },
+    { options: { fetchModel: () => Response.json({ error: { details: [{ reason: 'API_KEY_INVALID' }] } }, { status: 400 }) },
+      status: 503, message: /GEMINI_API_KEY/, calls: 1 },
+    { options: { fetchModel: () => new Response(null, { status: 429 }) }, status: 429, message: /quota/i, calls: 1 },
+    { options: { timeoutMs: 5, fetchModel: async (_url, init) => {
+      await once(init.signal, 'abort');
+      throw init.signal.reason;
+    } }, status: 504, message: /too long/i, calls: 1 },
+    { options: { fetchModel: () => modelReply('not JSON') }, status: 502, message: /unreadable/i, calls: 1 },
+  ]) {
+    const { post, calls } = await open(t, scenario.options);
+    const response = await post();
+    assert.equal(response.status, scenario.status);
+    assert.match((await response.json()).error, scenario.message);
+    assert.equal(calls.length, scenario.calls);
+  }
 });

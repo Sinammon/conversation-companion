@@ -1,4 +1,5 @@
 export type Mode = 'Lecture' | 'Meeting';
+export type DemoId = 'lecture' | 'meeting';
 export type Caption = { text: string; at: number }; // milliseconds from session start
 export type NoteSection = { heading: string; items: { text: string; quote: string }[] };
 export type Notes = { summary: string; sections: NoteSection[] };
@@ -12,5 +13,7 @@ export type Session = {
   captions: Caption[];
   allowAI: boolean;
   approvedUrl?: string;
+  approvedProvider?: 'gemini';
+  demoId?: DemoId;
   notes?: Notes;
 };

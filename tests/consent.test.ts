@@ -6,5 +6,7 @@ test('sharing consent belongs to the exact configured service', () => {
   assert.equal(isApproved({ allowAI: true, approvedUrl: 'http://one.local' }, 'http://two.local'), false);
   assert.equal(isApproved({ allowAI: true }, 'http://one.local'), false);
   assert.equal(isApproved({ allowAI: false, approvedUrl: 'http://one.local' }, 'http://one.local'), false);
-  assert.equal(isApproved({ allowAI: true, approvedUrl: 'http://one.local' }, 'http://one.local'), true);
+  assert.equal(isApproved({ allowAI: true, approvedUrl: 'http://one.local' }, 'http://one.local'), false);
+  assert.equal(isApproved({ allowAI: true, approvedUrl: 'http://one.local', approvedProvider: 'ollama' }, 'http://one.local'), false);
+  assert.equal(isApproved({ allowAI: true, approvedUrl: 'http://one.local', approvedProvider: 'gemini' }, 'http://one.local'), true);
 });

@@ -1,9 +1,13 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import type { Session } from '../types';
+import type { DemoId, Session } from '../types';
+import { demoIds, demos } from '../ai/demos';
 import { Action, c, Copy, formatTime, Heading, Icon, Page, s, serif, Wave } from '../components/ui';
 
-export function Notebook({ sessions, onNew, onOpen }: { sessions: Session[]; onNew: () => void; onOpen: (s: Session) => void }) {
+export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoError }: {
+  sessions: Session[]; onNew: () => void; onOpen: (s: Session) => void;
+  onDemo: (id: DemoId) => void; openingDemo: boolean; demoError: string;
+}) {
   return <Page>
     <View style={{ gap: 3 }}><Copy muted style={{ fontSize: 14, fontWeight: '600' }}>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</Copy>
       <Heading>My notebook</Heading></View>
@@ -15,6 +19,12 @@ export function Notebook({ sessions, onNew, onOpen }: { sessions: Session[]; onN
       <View style={{ gap: 5 }}><Text accessibilityRole="header" style={{ color: c.ink, fontFamily: serif, fontSize: 29, letterSpacing: -0.65 }}>Capture a conversation</Text>
         <Copy muted>Read live captions and save the transcript for later.</Copy></View>
       <View style={{ alignSelf: 'flex-start', marginTop: 2 }}><Action recording label="New session" icon="mic" onPress={onNew} /></View>
+    </View>
+    <View style={s.group}>
+      <Text accessibilityRole="header" style={s.subtitle}>Try Gemini notes</Text>
+      <Copy muted>Use a made-up conversation to try Notes and Ask without recording.</Copy>
+      {demoIds.map(id => <Action key={id} label={demos[id].title} icon="note" secondary disabled={openingDemo} onPress={() => onDemo(id)} />)}
+      {!!demoError && <Copy alert>{demoError}</Copy>}
     </View>
     <View style={{ gap: 14, paddingTop: 6 }}>
       <View style={[s.row, { justifyContent: 'space-between', borderBottomWidth: 1, borderColor: c.line, paddingBottom: 13 }]}>

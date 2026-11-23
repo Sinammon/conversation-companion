@@ -1,0 +1,17 @@
+{
+  "lecture": {
+    "title": "Lecture demo",
+    "mode": "Lecture",
+    "lines": [
+      "Photosynthesis turns light energy into chemical energy stored in sugars.",
+      "For example, leaves use sunlight, water, and carbon dioxide to make sugars."
+    ],
+    "questions": ["What does photosynthesis turn light energy into?", "Who discovered photosynthesis?"]
+  },
+  "meeting": {
+    "title": "Meeting demo",
+    "mode": "Meeting",
+    "lines": ["The lab meets Thursday.", "Maya will bring the notebook."],
+    "questions": ["When does the lab meet?", "Where is the lab meeting?"]
+  }
+}

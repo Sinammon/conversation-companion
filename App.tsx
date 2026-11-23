@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Action, c, Copy, Heading, Icon, Label, Page, s } from './src/components/ui';
@@ -11,8 +11,9 @@ import { Notebook } from './src/screens/notebook';
 import { Detail } from './src/screens/detail';
 import { loadSessions, saveSession, deleteSession, loadSize, saveSize } from './src/storage/notebook';
 import { serviceUrl } from './src/ai/client';
+import { createDemoSession, demoSessionId } from './src/ai/demos';
 import { useNotes } from './src/ai/use-notes';
-import type { Session } from './src/types';
+import type { DemoId, Session } from './src/types';
 
 type Screen = 'Notebook' | 'Preferences' | 'Capture' | 'Detail';
 export default function App() {
@@ -20,7 +21,9 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const { jobs, generate } = useNotes((id, notes) => setSessions(previous => previous.map(s => s.id === id ? { ...s, notes } : s)));
   const [current, setCurrent] = useState('');
-  const [auto, setAuto] = useState(false);
+  const demoLock = useRef(false);
+  const [openingDemo, setOpeningDemo] = useState(false);
+  const [demoError, setDemoError] = useState('');
   const [size, setSize] = useState(26);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [sizeError, setSizeError] = useState('');
@@ -42,6 +45,27 @@ export default function App() {
     await saveSession(session);
     setSessions(prev => [session, ...prev.filter(s => s.id !== session.id)].sort((a, b) => b.startedAt - a.startedAt));
   }
+  function openSession(session: Session) {
+    setCurrent(session.id);
+    setScreen('Detail');
+  }
+  async function openDemo(id: DemoId) {
+    if (demoLock.current) return;
+    demoLock.current = true;
+    setOpeningDemo(true);
+    setDemoError('');
+    try {
+      const saved = sessions.find(item => item.id === demoSessionId(id));
+      const session = saved ?? createDemoSession(id);
+      if (!saved) await persist(session);
+      openSession(session);
+    } catch {
+      setDemoError('Could not save the demo on this device. Try again.');
+    } finally {
+      demoLock.current = false;
+      setOpeningDemo(false);
+    }
+  }
   async function changeSize(label: CaptionSize) {
     if (savingSize) return;
     setSavingSize(true); setSizeError('');
@@ -54,15 +78,16 @@ export default function App() {
   const browserTab = Platform.OS === 'web' && status === 'ready' && mainTabs.find(tab => tab.name === screen);
   const content = status !== 'ready' ? <Page><Copy>{status === 'loading' ? 'Opening notebook…' : 'Your notebook could not be opened on this device.'}</Copy>
     {status === 'error' && <Action label="Try again" onPress={() => void load()} />}</Page> :
-    screen === 'Notebook' ? <Notebook sessions={sessions} onNew={() => setScreen('Capture')} onOpen={s => { setCurrent(s.id); setAuto(false); setScreen('Detail'); }} /> :
-    screen === 'Capture' ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); setCurrent(s.id); setAuto(s.allowAI); setScreen('Detail'); if (s.allowAI) void generate(s); }} /> :
-    screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} auto={auto} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
+    screen === 'Notebook' ? <Notebook sessions={sessions.filter(item => !item.demoId)} onNew={() => setScreen('Capture')} onOpen={openSession}
+      onDemo={id => void openDemo(id)} openingDemo={openingDemo} demoError={demoError} /> :
+    screen === 'Capture' ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); openSession(s); }} /> :
+    screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
       onUpdate={persist} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
     <Page><Heading>Preferences</Heading><CaptionSizeControl size={size} onChange={v => void changeSize(v)} />
       {!!sizeError && <Copy alert>{sizeError}</Copy>}
       <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.white }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
       <View style={s.group}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
-        <Copy muted>{serviceUrl ? 'You choose whether to share the transcript for each session.' : 'Captions and saved sessions work independently. See the project README to connect Ollama for notes and questions.'}</Copy></View>
+        <Copy muted>{serviceUrl ? 'Gemini can process the demo sessions after you approve sharing.' : 'Captions and saved sessions work independently. See the project README to connect Gemini.'}</Copy></View>
     </Page>;
 
   return <SafeAreaProvider><SafeAreaView style={{ flex: 1, backgroundColor: c.paper }}>
