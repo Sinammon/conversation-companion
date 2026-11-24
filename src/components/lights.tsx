@@ -1,17 +1,30 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useEffect } from 'react';
 
 export function Lights() {
+  const { width } = useWindowDimensions();
   const shift = useSharedValue(0);
-  useEffect(() => { shift.set(withRepeat(withTiming(24, { duration: 16000, easing: Easing.inOut(Easing.sin) }), -1, true, undefined, ReduceMotion.System)); }, [shift]);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: shift.get() }] }));
-  return <View pointerEvents="none" aria-hidden style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-    <Animated.View style={[{ position: 'absolute', inset: -30 }, style]}><Svg width="100%" height="100%">
-      <Defs><LinearGradient id="lights" x1="0" y1="0" x2="100%" y2="100%">
-        <Stop offset="0" stopColor="#394665" /><Stop offset=".24" stopColor="#26374F" />
-        <Stop offset=".48" stopColor="#343651" /><Stop offset=".72" stopColor="#1D3747" /><Stop offset="1" stopColor="#17263B" />
-      </LinearGradient></Defs><Rect width="100%" height="100%" fill="url(#lights)" />
-    </Svg></Animated.View></View>;
+  useEffect(() => {
+    shift.set(withRepeat(withTiming(1, { duration: 21000, easing: Easing.inOut(Easing.sin) }), -1, true, undefined, ReduceMotion.System));
+    return () => cancelAnimation(shift);
+  }, [shift]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: width * .18 * shift.get() }] }));
+  return <View pointerEvents="none" aria-hidden style={[StyleSheet.absoluteFill, { overflow: 'hidden', backgroundColor: '#203049' }]}>
+    <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: -width * .25, right: -width * .25 }, style]}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <LinearGradient id="lights" x1="0%" y1="20%" x2="100%" y2="55%">
+            {['#213149','#343E67','#535782','#355D71','#25374F','#26354D','#484977','#406575','#263B52','#22334A'].map((color, i) =>
+              <Stop key={i} offset={i / 9} stopColor={color} />)}
+          </LinearGradient>
+          <LinearGradient id="shade" x2="0%" y2="100%">
+            <Stop offset="0" stopColor="#18283E" stopOpacity="0" /><Stop offset="1" stopColor="#18283E" stopOpacity=".65" />
+          </LinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#lights)" /><Rect width="100%" height="100%" fill="url(#shade)" />
+      </Svg>
+    </Animated.View>
+  </View>;
 }
