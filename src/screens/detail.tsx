@@ -52,13 +52,13 @@ export function Detail({ session, size, job, generate, onUpdate, onDelete, onBac
     {tab === 'Notes' && job?.busy && <Copy>Writing notes…</Copy>}
     {tab === 'Notes' && !!job?.error && <Copy alert>{job.error}</Copy>}
     {tab === 'Transcript' && <>
-      {session.captions.map((line, index) => <View key={index} style={[s.group, { borderLeftWidth: 2, borderColor: c.line, paddingLeft: 14 }]}>
+      {session.captions.map((line, index) => <View key={index} style={s.panel}>
         <Label>{formatTime(line.at)}</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>{line.text}</Copy></View>)}
       {confirm ? <View style={s.group}><Copy>Delete this session and its notes from this device?</Copy><Action label="Keep session" secondary onPress={() => setConfirm(false)} />
         <Action label="Delete permanently" disabled={!!busy} onPress={() => void run('Deleting…', onDelete)} /></View>
         : <Action secondary label="Delete session" disabled={!!busy} onPress={() => setConfirm(true)} />}
     </>}
-    {tab !== 'Transcript' && !canGenerate && <View style={s.group}>
+    {tab !== 'Transcript' && !canGenerate && <View style={s.panel}>
       {!validTranscript ? <Copy muted>{transcript.length > 200000 ? 'This transcript exceeds the 200,000-character limit for AI.' : 'A saved transcript is needed for notes and questions.'}</Copy> :
         !serviceUrl ? <Copy muted>Set EXPO_PUBLIC_AI_URL on the PC and restart the app to connect the notes service.</Copy> :
         <>
@@ -70,8 +70,8 @@ export function Detail({ session, size, job, generate, onUpdate, onDelete, onBac
         </>}
     </View>}
     {tab === 'Notes' && session.notes && <>
-      <View style={s.group}><Text accessibilityRole="header" style={s.subtitle}>Summary</Text><Copy>{session.notes.summary}</Copy></View>
-      {session.notes.sections.map(section => <View key={section.heading} style={s.group}><Text accessibilityRole="header" style={s.subtitle}>{section.heading}</Text>
+      <View style={s.panel}><Text accessibilityRole="header" style={s.subtitle}>Summary</Text><Copy>{session.notes.summary}</Copy></View>
+      {session.notes.sections.map(section => <View key={section.heading} style={s.panel}><Text accessibilityRole="header" style={s.subtitle}>{section.heading}</Text>
         {!section.items.length && <Copy muted>No supported items in this section.</Copy>}
         {section.items.map((item, i) => <View key={i} style={{ gap: 6, paddingVertical: 9 }}><Copy>{item.text}</Copy><Source quote={item.quote} /></View>)}</View>)}
       </>}
@@ -84,10 +84,10 @@ export function Detail({ session, size, job, generate, onUpdate, onDelete, onBac
       <Action label="Ask question" icon="arrow" disabled={!!busy || !question.trim()} onPress={() => submitQuestion(question)} />
       {demo?.questions.map(text => <Action key={text} label={text} secondary disabled={!!busy}
         onPress={() => { setQuestion(text); submitQuestion(text); }} />)}
-      {answer && <View style={s.group}><Text accessibilityRole="header" style={s.subtitle}>Answer</Text><Copy>{answer.answer}</Copy>{answer.quote && <Source quote={answer.quote} />}</View>}
+      {answer && <View style={s.panel}><Text accessibilityRole="header" style={s.subtitle}>Answer</Text><Copy>{answer.answer}</Copy>{answer.quote && <Source quote={answer.quote} />}</View>}
     </View>}
   </Page>;
 }
 function Source({ quote }: { quote: string }) {
-  return <View style={{ paddingLeft: 12, borderLeftWidth: 2, borderColor: '#8B9F89', gap: 3 }}><Label>Transcript excerpt</Label><Copy muted>“{quote}”</Copy></View>;
+  return <View style={{ paddingLeft: 12, borderLeftWidth: 2, borderColor: c.green, gap: 3 }}><Label>Transcript excerpt</Label><Copy muted>“{quote}”</Copy></View>;
 }

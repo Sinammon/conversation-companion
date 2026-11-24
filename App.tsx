@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, Text, View } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, Text, View, Pressable, useWindowDimensions } from 'react-native';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
+import { useFonts } from 'expo-font';
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Lights } from './src/components/lights';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Action, c, Copy, Heading, Icon, Label, Page, s } from './src/components/ui';
 import { LiquidNavbar } from './src/components/liquid-navbar';
@@ -15,8 +20,13 @@ import { createDemoSession, demoSessionId } from './src/ai/demos';
 import { useNotes } from './src/ai/use-notes';
 import type { DemoId, Session } from './src/types';
 
+const transition = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
+const ScreenFrame = Platform.OS === 'web' ? View : Animated.View;
+
 type Screen = 'Notebook' | 'Preferences' | 'Capture' | 'Detail';
 export default function App() {
+  const [fonts, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold });
+  const wide = useWindowDimensions().width >= 900;
   const [screen, setScreen] = useState<Screen>('Notebook');
   const [sessions, setSessions] = useState<Session[]>([]);
   const { jobs, generate } = useNotes((id, notes) => setSessions(previous => previous.map(s => s.id === id ? { ...s, notes } : s)));
@@ -85,22 +95,36 @@ export default function App() {
       onUpdate={persist} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
     <Page><Heading>Preferences</Heading><CaptionSizeControl size={size} onChange={v => void changeSize(v)} />
       {!!sizeError && <Copy alert>{sizeError}</Copy>}
-      <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.white }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
-      <View style={s.group}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
+      <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.reader }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
+      <View style={s.panel}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
         <Copy muted>{serviceUrl ? 'Ask questions and make notes from saved transcripts after approving sharing for each session.' : 'Captions and saved sessions work independently. See the project README to connect Gemini.'}</Copy></View>
     </Page>;
 
+  if (!fonts && !fontError) return <View style={{ flex: 1, backgroundColor: c.paper }} />;
+  const brand = <View style={[s.row, { paddingHorizontal: wide ? 8 : 20, paddingVertical: 14 }]}>
+    <View style={{ backgroundColor: '#335461', padding: 8, borderRadius: 12, borderWidth: 1, borderColor: '#6E9DAF' }}><Icon name="sound" size={20} color="#ACF5E9" /></View>
+    <Text style={{ fontFamily: 'Inter_600SemiBold', color: c.ink, fontSize: 16, flexShrink: 1 }}>Conversation Companion</Text>
+  </View>;
   return <SafeAreaProvider><SafeAreaView style={{ flex: 1, backgroundColor: c.paper }}>
-    <StatusBar barStyle="dark-content" />
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      {topLevel && <View style={[s.row, { alignSelf: 'center', width: '100%', maxWidth: 720, paddingHorizontal: 22, paddingVertical: 12, gap: 10 }]}>
-        <View style={{ backgroundColor: c.green, padding: 7, borderRadius: 10 }}><Icon name="sound" size={18} color={c.lime} /></View>
-        <Text style={{ fontSize: 15, color: c.ink, fontWeight: '700', flexShrink: 1 }}>Conversation Companion</Text>
-      </View>}
-      {browserTab ? <View style={{ flex: 1, minHeight: 0 }} role="tabpanel" id={mainTabPanelId} aria-labelledby={browserTab.id}>
+    <StatusBar barStyle="light-content" /><Lights />
+    <View style={{ flex: 1, flexDirection: 'row' }}>
+    {wide && <View accessibilityLabel="Sidebar" style={{ width: 232, margin: 16, marginRight: 0, padding: 12, gap: 16,
+      backgroundColor: 'rgba(35,50,74,.84)', borderWidth: 1, borderColor: c.line, borderRadius: 22 }}>
+      {brand}
+      {screen !== 'Capture' && <View style={{ gap: 6 }}>{mainTabs.map(tab => <Pressable key={tab.id} id={tab.id} accessibilityRole="button"
+        accessibilityState={{ selected: screen === tab.name }} dataSet={{ lift: true }} onPress={() => setScreen(tab.name)}
+        style={[s.row, { backgroundColor: screen === tab.name ? c.wash : 'transparent', borderRadius: 12, padding: 13 }]}>
+        <Icon name={tab.icon} color={screen === tab.name ? '#B7F3E8' : c.muted} /><Text style={s.body}>{tab.name}</Text>
+      </Pressable>)}</View>}
+    </View>}
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, minWidth: 0, paddingTop: wide ? 15 : 0 }}>
+      {!wide && topLevel && brand}
+      <ScreenFrame key={screen} {...(Platform.OS !== 'web' ? { entering: transition } : {})} dataSet={{ page: true }} style={{ flex: 1, minHeight: 0 }}>
+      {browserTab && !wide ? <View style={{ flex: 1, minHeight: 0 }} role="tabpanel" id={mainTabPanelId} aria-labelledby={browserTab.id}>
         {content}
       </View> : content}
-      {topLevel && status === 'ready' && <LiquidNavbar active={screen} onChange={setScreen} />}
-    </KeyboardAvoidingView>
+      </ScreenFrame>
+      {!wide && topLevel && status === 'ready' && <LiquidNavbar active={screen} onChange={setScreen} />}
+    </KeyboardAvoidingView></View>
   </SafeAreaView></SafeAreaProvider>;
 }

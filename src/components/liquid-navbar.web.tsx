@@ -14,6 +14,7 @@ export function LiquidNavbar({ active, onChange }: { active: MainTab; onChange: 
     items={tabItems}
     active={mainTabs.findIndex(tab => tab.name === active)}
     onChange={index => onChange(mainTabs[index].name)}
+    tone="dark"
     compact={false}
     style={{
       color: c.ink, alignSelf: 'center', width: '90%', maxWidth: 396, margin: '4px 0 10px',

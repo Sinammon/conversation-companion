@@ -163,5 +163,5 @@ export function useCapture() {
     setNeedsMicrophoneChoice(false);
     if (needsMicrophoneChoice) setError('');
   }
-  return { phase, error, transcript, elapsed, startedAt, start, stop, inputInUse, needsMicrophoneChoice, acceptMicrophoneChoice };
+  return { audioTrack: microphone.current?.options.companionAudioTrack, phase, error, transcript, elapsed, startedAt, start, stop, inputInUse, needsMicrophoneChoice, acceptMicrophoneChoice };
 }

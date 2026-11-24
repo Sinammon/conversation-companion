@@ -116,15 +116,15 @@ const NIMBUS_CSS = `
 .nimbus-nav[data-compact="true"] .nimbus-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (max-width:520px){.nimbus-nav:not([data-compact="false"]) .nimbus-item{padding:0 13px}.nimbus-nav:not([data-compact="false"]) .nimbus-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
 @media (prefers-reduced-motion:reduce){.nv-ico svg,.nv-ico::before,.nv-ico::after,.nv-door{animation:none!important;transition:none}}
-.companion-dock{--n-tint:rgba(255,253,250,.8);--n-fg:#234B3E;--n-fg-soft:#555A53}
+.companion-dock[data-tone="dark"]{--n-tint:rgba(36,51,78,.94);--n-fg:#fff;--n-fg-soft:#d2dced}
 .companion-dock .nimbus-glass{box-shadow:inset 0 1px 0 white,0 4px 18px rgba(46,35,22,.12)}
 .companion-dock .nimbus-item{box-sizing:border-box;flex:1;min-width:0;justify-content:center;flex-direction:column;gap:4px;min-height:54px;height:auto;padding:8px 4px;font-size:.8125rem}
 .companion-dock .nimbus-item[aria-selected="true"]{font-weight:700}
-.companion-dock .nimbus-item:focus-visible{outline:2px solid #234B3E;outline-offset:-3px}
+.companion-dock .nimbus-item:focus-visible{outline:2px solid #B7FBF0;outline-offset:-3px}
 .companion-dock .nimbus-label{text-align:center;overflow-wrap:anywhere}
-.companion-dock .nimbus-drop{background:#e5ece2;box-shadow:inset 0 1px 1px white}
+.companion-dock .nimbus-drop{background:#495878;box-shadow:inset 0 1px 1px white}
 @media (prefers-reduced-transparency:reduce){
-  .nimbus-nav[data-refract] .nimbus-glass{background:#fffdfa;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .nimbus-nav[data-refract] .nimbus-glass{background:#26364d;backdrop-filter:none;-webkit-backdrop-filter:none}
 }
 `
 

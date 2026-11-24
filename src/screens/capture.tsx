@@ -8,6 +8,7 @@ import { finish } from '../capture/transcript';
 import { useKeepAwake } from 'expo-keep-awake';
 import { CaptionSizeControl } from '../components/caption-size';
 import type { CaptionSize } from '../components/caption-size';
+import { Orb } from '../components/orb';
 import { RecordingMeter } from '../components/recording-meter';
 import type { Mode, Session } from '../types';
 
@@ -19,8 +20,8 @@ function KeepScreenAwake() {
 function Check({ value, toggle, title, detail }: { value: boolean; toggle: () => void; title: string; detail?: string }) {
   return <Pressable accessibilityRole="checkbox" aria-checked={value} accessibilityState={{ checked: value }} accessibilityLabel={[title, detail].filter(Boolean).join('. ')}
     onPress={toggle} style={[s.row, { alignItems: 'flex-start', paddingVertical: 9, minHeight: 48 }]}>
-    <View style={{ width: 24, height: 24, backgroundColor: value ? c.green : c.white, borderRadius: 5, borderColor: c.green, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' }}>
-      {value && <Icon name="check" size={17} color={c.white} />}</View>
+    <View style={{ width: 24, height: 24, backgroundColor: value ? c.green : c.reader, borderRadius: 5, borderColor: c.green, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' }}>
+      {value && <Icon name="check" size={17} color={c.reader} />}</View>
     <View style={{ flex: 1, gap: 4 }}><Text style={[s.body, { fontWeight: '600' }]}>{title}</Text>{detail && <Text style={[s.body, { color: c.muted }]}>{detail}</Text>}</View>
   </Pressable>;
 }
@@ -87,7 +88,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         return <Pressable key={item?.id ?? 'system'} accessibilityRole="radio" aria-checked={selected}
           accessibilityState={{ checked: selected, disabled: loadingInputs }} disabled={loadingInputs}
           onPress={() => selectInput(item)} style={[s.choice, selected && s.activeChoice]}>
-          <Text style={[s.choiceText, selected && { color: c.white }]}>{item?.label ?? 'System default'}</Text>
+          <Text style={[s.choiceText, selected && { color: c.reader }]}>{item?.label ?? 'System default'}</Text>
         </Pressable>;
       })}
     </View>}
@@ -136,7 +137,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
       <View style={s.group}><Label>Session title (optional)</Label><TextInput accessibilityLabel="Session title" placeholder="e.g. Biology seminar" placeholderTextColor={c.muted} style={s.input} maxLength={120} value={title} onChangeText={setTitle} /></View>
       <View style={s.group}><Label>Note format</Label><Choices values={['Lecture', 'Meeting']} selected={mode} onChange={setMode} />
         <Copy muted>{mode === 'Lecture' ? 'Key concepts, examples, and study prompts.' : 'Discussion, decisions, and action items.'}</Copy></View>
-      <View style={{ gap: 4, borderTopWidth: 1, borderColor: c.line, paddingTop: 15 }}>
+      <View style={s.panel}>
         <View style={s.row}><Icon name="shield" size={19} /><Label>Before you start</Label></View>
         <Copy muted>Your device’s speech service may process audio online. This app saves transcript text on this device and does not keep audio files.</Copy>
         <Check value={consent} toggle={() => setConsent(!consent)} title="Everyone agrees to transcription." />
@@ -158,11 +159,11 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
           <Text accessibilityLiveRegion="polite" style={[s.label, { color: listening ? c.record : c.ink }]}>{status}</Text>
           {listening && <Label>Microphone in use: {cap.inputInUse}</Label>}
         </View>
-        <RecordingMeter listening={listening} />
+        <View style={s.row}><RecordingMeter listening={listening} /><Orb size={56} listening={listening} track={cap.audioTrack} /></View>
       </View>
       <Text accessibilityRole="header" style={s.subtitle}>Live captions</Text>
       {showSize && <View style={{ gap: 5 }}><CaptionSizeControl size={size} onChange={onSizeChange} />{!!sizeError && <Copy alert>{sizeError}</Copy>}</View>}
-      <ScrollView ref={list} style={{ flex: 1, minHeight: 64, backgroundColor: c.white, borderRadius: 16, borderWidth: 1, borderColor: c.line }} contentContainerStyle={{ padding: 16, gap: 14 }}
+      <ScrollView ref={list} style={{ flex: 1, minHeight: 64, backgroundColor: c.reader, borderRadius: 16, borderWidth: 1, borderColor: c.line }} contentContainerStyle={{ padding: 16, gap: 14 }}
         onContentSizeChange={() => { if (follow) list.current?.scrollToEnd({ animated: false }); }}>
         {!captions.length && <Copy muted>{stopped ? 'No speech captured yet.' : 'Captions will appear when someone speaks.'}</Copy>}
         {cap.transcript.final.map((line, i) => <Text selectable key={i} style={{ fontSize: size, lineHeight: size * 1.45, color: c.ink }}>{line.text}</Text>)}

@@ -13,6 +13,6 @@ export function GlassMaterial() {
     return () => { current = false; listener.remove(); };
   }, []);
   if (opaque || !isGlassEffectAPIAvailable() || !isLiquidGlassAvailable()) return <GlassFallback />;
-  return <GlassView pointerEvents="none" glassEffectStyle="regular" colorScheme="light"
+  return <GlassView pointerEvents="none" glassEffectStyle="regular" colorScheme="dark"
     style={[StyleSheet.absoluteFill, { borderRadius: 34 }]} />;
 }

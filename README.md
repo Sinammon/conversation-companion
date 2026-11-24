@@ -2,7 +2,7 @@
 
 An accessible live-caption notebook for lectures and meetings. Start with everyone's consent, read speech as it arrives, then stop and save the transcript on your device. Connect the optional local AI service to generate notes and ask questions with supporting excerpts.
 
-<img src="docs/notebook.png" width="280" alt="Mobile notebook with an action to start a conversation and a list of saved sessions">
+<img src="docs/notebook.png" width="280" alt="Mobile notebook with a luminous recording orb, New session button, and lecture and meeting sample cards">
 
 ## Run the app
 
