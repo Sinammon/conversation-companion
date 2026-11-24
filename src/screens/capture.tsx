@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import { AccessibilityInfo, BackHandler, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Action, c, Choices, Copy, formatTime, Heading, Icon, Label, Page, s } from '../components/ui';
 import { useCapture } from '../capture/use-capture';
+import { canChooseMicrophone, listMicrophones } from '../capture/microphone';
+import type { MicrophoneInput } from '../capture/microphone-types';
 import { finish } from '../capture/transcript';
 import { useKeepAwake } from 'expo-keep-awake';
 import { CaptionSizeControl } from '../components/caption-size';
@@ -35,6 +37,11 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const [discard, setDiscard] = useState(false);
   const [follow, setFollow] = useState(true);
   const [showSize, setShowSize] = useState(false);
+  const [input, setInput] = useState<MicrophoneInput | null>(null);
+  const [inputs, setInputs] = useState<MicrophoneInput[]>([]);
+  const [showInputs, setShowInputs] = useState(false);
+  const [loadingInputs, setLoadingInputs] = useState(false);
+  const [inputError, setInputError] = useState('');
   const list = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const lock = useRef(false);
   const capturing = cap.startedAt.current !== 0;
@@ -42,6 +49,49 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const listening = cap.phase === 'listening';
   const busy = cap.phase === 'permission' || cap.phase === 'starting' || cap.phase === 'stopping';
   const captions = finish(cap.transcript);
+  const canChoose = canChooseMicrophone();
+  async function toggleInputs() {
+    if (showInputs) {
+      setShowInputs(false);
+      return;
+    }
+    setShowInputs(true);
+    setLoadingInputs(true);
+    setInputError('');
+    setInputs([]);
+    try {
+      setInputs(await listMicrophones());
+    } catch (error) {
+      setInputError(error instanceof Error ? error.message : 'Could not list microphones. Try again.');
+    } finally { setLoadingInputs(false); }
+  }
+  function selectInput(selected: MicrophoneInput | null) {
+    setInput(selected);
+    setShowInputs(false);
+    cap.acceptMicrophoneChoice();
+  }
+  function start() {
+    setShowInputs(false);
+    void cap.start(consent, input);
+  }
+  const microphones = <View style={s.group}>
+    <Label>Microphone</Label>
+    <Copy muted>{input?.label ?? (canChoose ? 'System default' : 'System microphone')}</Copy>
+    {canChoose && <Action label="Choose microphone" icon="mic" secondary expanded={showInputs}
+      disabled={!consent || loadingInputs || saving || busy} onPress={() => void toggleInputs()} />}
+    {showInputs && <View accessibilityRole="radiogroup" accessibilityLabel="Microphone inputs" style={s.group}>
+      {loadingInputs && <Copy muted>Finding microphones…</Copy>}
+      {!!inputError && <Copy alert>{inputError}</Copy>}
+      {[null, ...inputs].map(item => {
+        const selected = !cap.needsMicrophoneChoice && (item?.id ?? null) === (input?.id ?? null);
+        return <Pressable key={item?.id ?? 'system'} accessibilityRole="radio" aria-checked={selected}
+          accessibilityState={{ checked: selected, disabled: loadingInputs }} disabled={loadingInputs}
+          onPress={() => selectInput(item)} style={[s.choice, selected && s.activeChoice]}>
+          <Text style={[s.choiceText, selected && { color: c.white }]}>{item?.label ?? 'System default'}</Text>
+        </Pressable>;
+      })}
+    </View>}
+  </View>;
   function back() {
     if (lock.current) return;
     if (!capturing && cap.phase === 'ready') { onExit(); return; }
@@ -91,9 +141,11 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         <Copy muted>Your device’s speech service may process audio online. This app saves transcript text on this device and does not keep audio files.</Copy>
         <Check value={consent} toggle={() => setConsent(!consent)} title="Everyone agrees to transcription." />
       </View>
+      {microphones}
       {!!cap.error && <Copy alert>{cap.error}</Copy>}
       {!!cap.error && Platform.OS !== 'web' && <Action secondary label="Open device settings" onPress={() => { void Linking.openSettings().catch(() => {}); }} />}
-      <Action recording label={busy ? status : 'Start live captions'} icon="mic" disabled={!consent || busy} onPress={() => void cap.start(consent)} />
+      <Action recording label={busy ? status : 'Start live captions'} icon="mic"
+        disabled={!consent || busy || loadingInputs || cap.needsMicrophoneChoice} onPress={start} />
     </Page> : <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 720, padding: 18, gap: 11 }}>
       <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}>
         <Action label="Leave session" secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} />
@@ -104,6 +156,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         <View style={{ flexShrink: 1 }}>
           <Label>{mode} · <Text style={{ fontVariant: ['tabular-nums'] }}>{formatTime(cap.elapsed)}</Text></Label>
           <Text accessibilityLiveRegion="polite" style={[s.label, { color: listening ? c.record : c.ink }]}>{status}</Text>
+          {listening && <Label>Microphone in use: {cap.inputInUse}</Label>}
         </View>
         <RecordingMeter listening={listening} />
       </View>
@@ -119,8 +172,8 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
       <ScrollView style={{ flexGrow: 0, maxHeight: '50%' }} contentContainerStyle={{ gap: 8 }}>
         {!!(cap.error || saveError) && <Copy alert>{saveError || cap.error}</Copy>}
         {discard ? <View style={s.group}><Copy>Leave without saving these captions?</Copy><Action label="Keep session" onPress={() => setDiscard(false)} /><Action secondary label="Discard and leave" onPress={onExit} /></View>
-          : stopped ? <><Action label={saving ? 'Saving…' : 'Save session'} disabled={!captions.length || saving} icon="book" onPress={() => void save()} />
-            <Action secondary label="Resume captions" icon="mic" disabled={saving} onPress={() => void cap.start(consent)} /></>
+          : stopped ? <>{microphones}<Action label={saving ? 'Saving…' : 'Save session'} disabled={!captions.length || saving} icon="book" onPress={() => void save()} />
+            <Action secondary label="Resume captions" icon="mic" disabled={saving || loadingInputs || cap.needsMicrophoneChoice} onPress={start} /></>
           : <><Action secondary label={follow ? 'Pause auto-scroll' : 'Follow live captions'} onPress={() => { setFollow(!follow); if (!follow) list.current?.scrollToEnd(); }} />
             <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} /></>}
       </ScrollView>

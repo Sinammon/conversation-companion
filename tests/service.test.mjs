@@ -72,17 +72,30 @@ test('Gemini notes preserve the Meeting action and supporting quote', async t =>
   assert.deepEqual(notes.sections[2], { heading: 'Action items', items: [{ text: quote, quote }] });
 });
 
-test('foreign origins, legacy approvals, real transcripts, and free-form questions never reach Gemini', async t => {
+test('foreign origins, legacy approvals and invalid inputs never reach Gemini', async t => {
   const { calls, post, url } = await open(t);
   const foreign = 'https://unrelated.example';
   assert.equal((await fetch(url + '/ask', { method: 'OPTIONS', headers: { Origin: foreign } })).status, 403);
   assert.equal((await post({}, foreign)).status, 403);
   assert.equal((await post({ approvedProvider: undefined })).status, 409);
   assert.equal((await post({ approvedProvider: 'ollama' })).status, 409);
-  assert.equal((await post({ transcript: body.transcript + '\nDifferent content.' })).status, 400);
-  assert.equal((await post({ question: 'Unlisted question?' })).status, 400);
-  assert.equal((await post({ demoId: 'other' })).status, 400);
+  for (const invalid of [{ transcript: ' ' }, { transcript: 'x'.repeat(200001) },
+    { question: ' ' }, { question: 'x'.repeat(1001) }, { mode: 'Other' }]) {
+    assert.equal((await post(invalid)).status, 400);
+  }
+  assert.equal((await post({ transcript: 'x'.repeat(2 * 1024 * 1024 + 1) })).status, 413);
   assert.equal(calls.length, 0);
+});
+
+test('an approved saved transcript and a typed question reach Gemini without session metadata', async t => {
+  const { calls, post } = await open(t);
+  const transcript = 'Background. '.repeat(1000) + '\n' + quote;
+  const question = 'Can you tell me what day the lab meets?';
+  const res = await post({ demoId: undefined, transcript, question, title: 'private title' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), answer);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(JSON.parse(JSON.parse(calls[0][1].body).contents[0].parts[0].text), { transcript, question });
 });
 
 test('missing key, quota, timeout and invalid output return useful errors', async t => {

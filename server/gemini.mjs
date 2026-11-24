@@ -5,7 +5,7 @@ export class GeminiError extends Error {
   }
 }
 
-export function createGenerator({ key, model, fetchModel = fetch, timeoutMs = 30000 }) {
+export function createGenerator({ key, model, fetchModel = fetch, timeoutMs = 60000 }) {
   const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
   return async function generate(system, data, schema, signal) {
     const timeout = AbortSignal.timeout(timeoutMs);

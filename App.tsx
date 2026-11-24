@@ -87,7 +87,7 @@ export default function App() {
       {!!sizeError && <Copy alert>{sizeError}</Copy>}
       <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.white }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
       <View style={s.group}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
-        <Copy muted>{serviceUrl ? 'Gemini can process the demo sessions after you approve sharing.' : 'Captions and saved sessions work independently. See the project README to connect Gemini.'}</Copy></View>
+        <Copy muted>{serviceUrl ? 'Ask questions and make notes from saved transcripts after approving sharing for each session.' : 'Captions and saved sessions work independently. See the project README to connect Gemini.'}</Copy></View>
     </Page>;
 
   return <SafeAreaProvider><SafeAreaView style={{ flex: 1, backgroundColor: c.paper }}>

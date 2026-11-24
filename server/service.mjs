@@ -1,7 +1,9 @@
 import http from 'node:http';
-import demos from '../src/ai/demos.json' with { type: 'json' };
 import { assist, InputError } from './assistant.mjs';
 import { createGenerator, GeminiError } from './gemini.mjs';
+
+const maxBodyBytes = 2 * 1024 * 1024;
+class BodyTooLarge extends Error {}
 
 async function readBody(request) {
   const chunks = [];
@@ -9,24 +11,11 @@ async function readBody(request) {
   // Continue draining oversized requests so the client can receive the error.
   for await (const chunk of request) {
     bytes += chunk.length;
-    if (bytes <= 8192) chunks.push(chunk);
+    if (bytes <= maxBodyBytes) chunks.push(chunk);
   }
-  if (bytes > 8192) throw new InputError('Only the bundled demo transcript is accepted.');
+  if (bytes > maxBodyBytes) throw new BodyTooLarge('The notes request is too large.');
   try { return JSON.parse(Buffer.concat(chunks).toString()); }
   catch { throw new InputError('Expected a JSON request.'); }
-}
-
-function demoInput(input, task) {
-  const id = input?.demoId;
-  const demo = typeof id === 'string' && Object.hasOwn(demos, id) ? demos[id] : undefined;
-  const transcript = demo?.lines.join('\n');
-  if (!demo || input.mode !== demo.mode || input.transcript !== transcript) {
-    throw new InputError('Gemini is limited to the bundled demo sessions during this pilot.');
-  }
-  if (task === 'ask' && !demo.questions.includes(input.question)) {
-    throw new InputError('Choose one of the demo questions.');
-  }
-  return { mode: demo.mode, transcript, question: task === 'ask' ? input.question : undefined };
 }
 
 export function createNotesServer({ key = '', model, origins, fetchModel, timeoutMs }) {
@@ -54,6 +43,10 @@ export function createNotesServer({ key = '', model, origins, fetchModel, timeou
     }
     const task = req.url === '/notes' ? 'notes' : req.url === '/ask' ? 'ask' : null;
     if (!task || req.method !== 'POST') return send(404, { error: 'Unknown endpoint.' });
+    if (Number(req.headers['content-length']) > maxBodyBytes) {
+      req.resume();
+      return send(413, { error: 'The notes request is too large.' });
+    }
     if (!key) return send(503, { error: 'Add GEMINI_API_KEY to the notes server’s .env file and restart the server.' });
     if (active >= 2) return send(429, { error: 'The notes service is busy. Try again shortly.' });
     active++;
@@ -62,12 +55,12 @@ export function createNotesServer({ key = '', model, origins, fetchModel, timeou
     try {
       const body = await readBody(req);
       if (body?.approvedProvider !== 'gemini') {
-        return send(409, { error: 'Approve sharing this demo with Google Gemini before trying again.' });
+        return send(409, { error: 'Approve sharing this session with Google Gemini before trying again.' });
       }
-      const input = demoInput(body, task);
-      send(200, await assist(task, input, (system, data, format) => generate(system, data, format, controller.signal)));
+      send(200, await assist(task, body, (system, data, format) => generate(system, data, format, controller.signal)));
     } catch (error) {
       if (res.destroyed) return;
+      if (error instanceof BodyTooLarge) return send(413, { error: error.message });
       if (error instanceof InputError) return send(400, { error: error.message });
       if (error instanceof GeminiError) return send(error.status, { error: error.message });
       send(502, { error: 'Gemini returned notes that could not be verified against the transcript. Try again.' });

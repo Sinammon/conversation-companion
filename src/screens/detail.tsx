@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { Action, c, Choices, Copy, formatTime, Heading, Label, Page, s } from '../components/ui';
 import { ask, serviceUrl } from '../ai/client';
 import { isApproved } from '../ai/consent';
-import { demoForSession } from '../ai/demos';
+import { demoForSession, transcriptOf } from '../ai/demos';
 import type { NoteJob } from '../ai/use-notes';
 import type { Answer, Session } from '../types';
 
@@ -13,6 +13,7 @@ export function Detail({ session, size, job, generate, onUpdate, onDelete, onBac
 }) {
   const [tab, setTab] = useState<'Transcript' | 'Notes' | 'Ask'>(session.notes ? 'Notes' : 'Transcript');
   const [answer, setAnswer] = useState<Answer | null>(null);
+  const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
@@ -30,11 +31,21 @@ export function Detail({ session, size, job, generate, onUpdate, onDelete, onBac
     return () => { mounted.current = false; };
   }, []);
   const demo = demoForSession(session);
-  const canGenerate = !!demo && isApproved(session, serviceUrl);
+  const transcript = transcriptOf(session);
+  const validTranscript = !!transcript.trim() && transcript.length <= 200000;
+  const canGenerate = validTranscript && isApproved(session, serviceUrl);
+  function submitQuestion(text: string) {
+    if (!text.trim()) return;
+    void run('Reading transcript…', async () => {
+      setAnswer(null);
+      const result = await ask(session, text);
+      if (mounted.current) setAnswer(result);
+    });
+  }
   return <Page>
     <View style={{ alignSelf: 'flex-start' }}><Action secondary icon="back" label="Notebook" onPress={onBack} /></View>
     <View style={s.group}><Label>{session.mode} · {new Date(session.startedAt).toLocaleDateString()} · {formatTime(session.durationMs)}</Label><Heading>{session.title}</Heading></View>
-    {demo && <Copy muted>Made-up transcript for the Gemini pilot.</Copy>}
+    {demo && <Copy muted>Made-up transcript for trying Gemini.</Copy>}
     <Choices values={['Transcript', 'Notes', 'Ask']} selected={tab} onChange={value => { setTab(value); setConfirm(false); }} />
     {!!busy && <Text accessibilityLiveRegion="polite" style={s.label}>{busy}</Text>}
     {!!error && <Copy alert>{error}</Copy>}
@@ -48,29 +59,31 @@ export function Detail({ session, size, job, generate, onUpdate, onDelete, onBac
         : <Action secondary label="Delete session" disabled={!!busy} onPress={() => setConfirm(true)} />}
     </>}
     {tab !== 'Transcript' && !canGenerate && <View style={s.group}>
-      {!demo ? <Copy muted>Gemini is available for the two demo sessions.</Copy> :
+      {!validTranscript ? <Copy muted>{transcript.length > 200000 ? 'This transcript exceeds the 200,000-character limit for AI.' : 'A saved transcript is needed for notes and questions.'}</Copy> :
         !serviceUrl ? <Copy muted>Set EXPO_PUBLIC_AI_URL on the PC and restart the app to connect the notes service.</Copy> :
         <>
-          <Text accessibilityRole="header" style={s.subtitle}>Share this demo?</Text>
-          <Copy muted>Send this made-up transcript to Google Gemini through the notes server at {serviceUrl}. Google may use free-tier content to improve its products.</Copy>
+          <Text accessibilityRole="header" style={s.subtitle}>Share this transcript?</Text>
+          <Copy muted>When you request notes or ask a question, Google Gemini receives the transcript and any question you submit through {serviceUrl}. Google may use free-tier content to improve its products.</Copy>
+          {!demo && <Copy>By allowing sharing, you confirm that the participants agreed to share the transcript with Google.</Copy>}
           <Action label="Allow sharing with Google Gemini" disabled={!!busy} onPress={() => void run('Saving…', () =>
             onUpdate({ ...session, allowAI: true, approvedUrl: serviceUrl, approvedProvider: 'gemini' }))} />
         </>}
     </View>}
-    {tab === 'Notes' && (session.notes ? <>
+    {tab === 'Notes' && session.notes && <>
       <View style={s.group}><Text accessibilityRole="header" style={s.subtitle}>Summary</Text><Copy>{session.notes.summary}</Copy></View>
       {session.notes.sections.map(section => <View key={section.heading} style={s.group}><Text accessibilityRole="header" style={s.subtitle}>{section.heading}</Text>
         {!section.items.length && <Copy muted>No supported items in this section.</Copy>}
         {section.items.map((item, i) => <View key={i} style={{ gap: 6, paddingVertical: 9 }}><Copy>{item.text}</Copy><Source quote={item.quote} /></View>)}</View>)}
-      </> : canGenerate && !busy && !job?.busy && <Action icon="note" label="Generate notes" onPress={() => void generate(session)} />)}
-    {tab === 'Ask' && demo && canGenerate && <View style={{ gap: 14 }}>
-      <Label>Choose a demo question</Label>
-      {demo.questions.map(question => <Action key={question} label={question} icon="arrow" disabled={!!busy}
-        onPress={() => void run('Reading transcript…', async () => {
-          setAnswer(null);
-          const result = await ask(session, question);
-          if (mounted.current) setAnswer(result);
-        })} />)}
+      </>}
+    {tab === 'Notes' && canGenerate && !busy && !job?.busy &&
+      <Action icon="note" label={session.notes ? 'Regenerate notes' : 'Generate notes'} onPress={() => void generate(session)} />}
+    {tab === 'Ask' && canGenerate && <View style={{ gap: 14 }}>
+      <Label>Question about this transcript</Label>
+      <TextInput multiline accessibilityLabel="Question about this transcript" value={question}
+        onChangeText={text => { setQuestion(text); setAnswer(null); }} maxLength={1000} editable={!busy} style={s.input} />
+      <Action label="Ask question" icon="arrow" disabled={!!busy || !question.trim()} onPress={() => submitQuestion(question)} />
+      {demo?.questions.map(text => <Action key={text} label={text} secondary disabled={!!busy}
+        onPress={() => { setQuestion(text); submitQuestion(text); }} />)}
       {answer && <View style={s.group}><Text accessibilityRole="header" style={s.subtitle}>Answer</Text><Copy>{answer.answer}</Copy>{answer.quote && <Source quote={answer.quote} />}</View>}
     </View>}
   </Page>;

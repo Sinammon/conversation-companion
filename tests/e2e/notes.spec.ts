@@ -15,7 +15,7 @@ test('demo opt-in, note persistence after navigation, and cited and unanswered q
   });
   await page.route(url + '/ask', route => {
     const body = route.request().postDataJSON();
-    expect(body).toMatchObject({ approvedProvider: 'gemini', demoId: 'meeting', transcript });
+    expect(body).toMatchObject({ approvedProvider: 'gemini', transcript });
     return route.fulfill({ json: body.question === 'When does the lab meet?'
       ? { answer: 'Thursday.', quote }
       : { answer: 'There is not enough information in this transcript to answer that question.', quote: null } });
@@ -23,12 +23,12 @@ test('demo opt-in, note persistence after navigation, and cited and unanswered q
   await page.goto('/');
   await page.getByRole('button', { name: 'Meeting demo' }).click();
   await page.getByRole('radio', { name: 'Notes' }).click();
-  await expect(page.getByText(/Send this made-up transcript to Google Gemini/)).toBeVisible();
+  await expect(page.getByText(/Google may use free-tier content/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Generate notes' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Allow sharing with Google Gemini' }).click();
   const request = page.waitForRequest(url + '/notes');
   await page.getByRole('button', { name: 'Generate notes' }).click();
-  expect((await request).postDataJSON()).toMatchObject({ approvedProvider: 'gemini', demoId: 'meeting', mode: 'Meeting', transcript });
+  expect((await request).postDataJSON()).toMatchObject({ approvedProvider: 'gemini', mode: 'Meeting', transcript });
   await page.getByRole('button', { name: 'Notebook' }).click();
   release();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('conversation-companion.session.gemini-demo-meeting')!).notes?.summary)).toBe(summary);
@@ -44,7 +44,17 @@ test('demo opt-in, note persistence after navigation, and cited and unanswered q
   await expect(page.getByText('“' + quote + '”')).toHaveCount(0);
 });
 
-test('a regular saved session keeps old notes readable and cannot share a transcript during the pilot', async ({ page }) => {
+test('a regular saved session keeps old notes and sends a typed question only after fresh approval', async ({ page }) => {
+  const url = process.env.EXPO_PUBLIC_AI_URL?.replace(/\/+$/, '');
+  test.skip(!url, 'Export with EXPO_PUBLIC_AI_URL set to exercise the AI screen.');
+  let calls = 0;
+  await page.route(url + '/ask', route => {
+    calls++;
+    expect(route.request().postDataJSON()).toMatchObject({
+      transcript: 'An existing transcript stays on the device.', question: 'Where does the transcript stay?',
+    });
+    return route.fulfill({ json: { answer: 'On the device.', quote: 'An existing transcript stays on the device.' } });
+  });
   await page.addInitScript(() => {
     const quote = 'An existing transcript stays on the device.';
     localStorage.setItem('conversation-companion.session.existing', JSON.stringify({
@@ -57,6 +67,13 @@ test('a regular saved session keeps old notes readable and cannot share a transc
   await page.getByRole('button', { name: /Existing session/ }).click();
   await expect(page.getByText('An existing transcript stays on the device.')).toBeVisible();
   await page.getByRole('radio', { name: 'Ask' }).click();
-  await expect(page.getByText('Gemini is available for the two demo sessions.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Allow sharing with Google Gemini' })).toHaveCount(0);
+  await expect(page.getByText(/participants agreed/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ask question' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Allow sharing with Google Gemini' }).click();
+  const question = page.getByRole('textbox', { name: 'Question about this transcript' });
+  await question.fill('Where does the transcript stay?');
+  expect(calls).toBe(0);
+  await page.getByRole('button', { name: 'Ask question' }).click();
+  await expect(page.getByText('On the device.', { exact: true })).toBeVisible();
+  expect(calls).toBe(1);
 });

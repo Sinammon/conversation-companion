@@ -36,11 +36,15 @@ For an existing generated Android project, run `npx expo prebuild --platform and
 3. Read the interim text as it settles into the transcript. **Pause auto-scroll** lets you read an earlier passage. If recognition stops, the app shows **Microphone off** and offers **Resume captions**.
 4. Use **Caption size** in the live reader or **Preferences** to adjust live and saved captions. Tap **Stop microphone**, then **Save session**. Reopen it from **My notebook**.
 
+**Choose microphone** appears in desktop Chrome 135+ on localhost or HTTPS, and in a rebuilt native iPhone app. Allow microphone access to list inputs before starting, or change the input after stopping and before resuming. If a selected mic disconnects, your current captions stay available and you can select a new input or **System default**. iPhone Safari, Android, and the plain-HTTP Wi-Fi URL follow the system microphone.
+
+Rebuild the iOS development client to add the mic picker. The pinned Expo speech-recognition package is patched automatically by `npm ci`. Desktop Chrome can use the picker after reloading the Expo web app at `http://localhost:8081`.
+
 If iPhone Safari says speech recognition is unavailable, turn on Siri under **Settings → Siri** or **Apple Intelligence & Siri**, then reload the app page in Safari. Tap **Allow** if prompted for microphone access. Safari uses the device's speech recognizer for captions. [WebKit speech recognition](https://webkit.org/blog/11648/new-webkit-features-in-safari-14-1/#web-speech-api)
 
 ## Connect AI notes and Q&A
 
-Create an API key in [Google AI Studio](https://aistudio.google.com/apikey). Copy `.env.example` to `.env` if you don't already have one. Add the key to `GEMINI_API_KEY` in that private file on your PC. The server defaults to `gemini-3.1-flash-lite`. Google may use free-tier inputs to improve its products, so the pilot accepts only the two made-up conversations and their preset questions. [Gemini pricing and data use](https://ai.google.dev/gemini-api/docs/pricing)
+Create an API key in [Google AI Studio](https://aistudio.google.com/apikey). Copy `.env.example` to `.env` if you don't already have one. Add the key to `GEMINI_API_KEY` in that private file on your PC. The server defaults to `gemini-3.1-flash-lite`. Google may use free-tier inputs to improve its products. Get agreement from the participants before sharing a saved transcript with Google. [Gemini pricing and data use](https://ai.google.dev/gemini-api/docs/pricing)
 
 Choose an address reachable **from the phone** before building the app.
 
@@ -55,14 +59,14 @@ Run `npm run server` in one terminal and `npm run web -- --lan` in another. Allo
 
 Open the service address with `/health` appended in Safari to check connectivity. `missing-key` means the running server could not load a key. `ready` means the key is configured. Generate demo notes to verify that Google accepts it. For a browser running on another origin, add its exact scheme, host and port to `WEB_ORIGINS` and restart the server.
 
-From **My notebook**, open **Lecture demo** or **Meeting demo**, then choose **Notes → Allow sharing with Google Gemini → Generate notes**. Open **Ask** for the preset questions. Lecture notes group concepts, examples and study prompts. Meeting notes group discussion, decisions and actions. The service checks excerpts against the transcript and can return an insufficient-evidence answer. Regular recordings and previously saved notes remain readable on the device.
+Open a saved session and choose **Notes → Allow sharing with Google Gemini → Generate notes**. In **Ask**, type a question and tap **Ask question**. Approving sharing does not send content until you request notes or an answer. **Lecture demo** and **Meeting demo** are available to try the same features without recording. The service checks excerpts against the transcript and can return an insufficient-evidence answer.
 
 ## Data and device behavior
 
 - Captions use the configured system speech recognizer in US English. The recognizer may send audio to its provider. This app disables audio-file persistence. Availability, accuracy, and session length depend on the device, locale and service. Android 12 and earlier can end recognition after each utterance.
 - Recording stops when the app enters the background. Save before closing the app. Unsaved capture is held in memory.
 - Native sessions and preferences are stored in local SQLite in the app sandbox. Device backup policies may apply. Delete a session from its transcript view. The repository does not sync classmates' notes.
-- Demo sharing requires approval for the configured service address and Google Gemini. Changing the address requires fresh consent. The service checks returned quotes and sends no application-level transcript logs.
+- Each session requires approval for the configured service address and Google Gemini. The server sends the transcript and, for Ask, the submitted question to Gemini. The app keeps captions and saved notes readable when AI is unavailable.
 
 ## Develop together
 
@@ -79,7 +83,7 @@ npx playwright test
 
 GitHub Actions runs these checks on pushes and pull requests. Browser tests inject synthetic speech events and service tests inject Gemini responses. These fixtures live under `tests/`. To verify the real hardware and model, use the [device test procedure](docs/device-check.md).
 
-The **Real model smoke test** workflow uses a GitHub Actions secret named `GEMINI_API_KEY`. To check both demos using the key in your local `.env`, run `node --env-file=.env --test tests/model/gemini.smoke.mjs`.
+The **Real model smoke test** workflow uses a GitHub Actions secret named `GEMINI_API_KEY`. To check notes and typed questions on invented transcripts using your local key, run `node --env-file=.env --test tests/model/gemini.smoke.mjs`.
 
 The app entry is `App.tsx`. Shared controls live in `src/components`, views in `src/screens`, speech lifecycle in `src/capture`, and persistence in `src/storage`. The mobile AI client lives in `src/ai` and calls the separate Node service in `server/`. The [technical plan](docs/superpowers/plans/2026-11-23-conversation-companion.md) covers speech costs, decisions, and testing.
 

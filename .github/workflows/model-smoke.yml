@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Verify Gemini against the bundled demo sessions
+      - name: Verify Gemini notes and questions with invented transcripts
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: node --test tests/model/gemini.smoke.mjs

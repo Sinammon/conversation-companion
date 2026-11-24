@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assist, headings, splitText } from '../server/assistant.mjs';
+import { assist, headings } from '../server/assistant.mjs';
 
 // Synthetic development fixture. Never bundled in the app or shown as a real session.
 const transcript = 'The lab meets on Thursday. Bring your notebook.';
@@ -28,25 +28,18 @@ for (const mode of ['Lecture', 'Meeting']) {
     assert.equal(notes.summary, 'The lab meets Thursday.');
   });
 }
-test('chunks keep the end of long input and split very long utterances', () => {
-  const source = 'A'.repeat(17000) + ' LAST';
-  const parts = splitText(source);
-  assert.ok(parts.length > 1);
-  assert.ok(parts.every(part => part.length <= 6000));
-  assert.match(parts.at(-1), /LAST/);
-});
-test('a later correction is considered before answering across chunks', async () => {
+test('one request includes a later correction in a long transcript', async () => {
   const old = 'Our first plan was Tuesday.';
   const change = 'Correction, the meeting is Friday.';
   const long = old + '\n' + 'Background. '.repeat(560) + '\n' + change;
+  let calls = 0;
   const result = await assist('ask', { transcript: long, mode: 'Meeting', question: 'When is the meeting?' },
     async (_rules, data) => {
-      if (data.evidence) {
-        assert.deepEqual(data.evidence.map(e => e.quote), [old, change]);
-        return { answer: 'Friday.', quote: change };
-      }
-      return data.transcript.includes(change) ? { answer: 'Friday.', quote: change } : { answer: 'Tuesday.', quote: old };
+      calls++;
+      assert.equal(data.transcript, long);
+      return { answer: 'Friday.', quote: change };
     });
+  assert.equal(calls, 1);
   assert.equal(result.quote, change);
 });
 test('rejects empty transcripts before contacting the model', async () => {

@@ -1,21 +1,20 @@
 import type { Answer, Notes, Session } from '../types';
 import { isApproved } from './consent';
-import { demoForSession, transcriptOf } from './demos';
+import { transcriptOf } from './demos';
 
 export const serviceUrl = (process.env.EXPO_PUBLIC_AI_URL ?? '').trim().replace(/\/+$/, '');
 
 async function request<T>(path: 'notes' | 'ask', session: Session, question?: string): Promise<T> {
-  if (!isApproved(session, serviceUrl)) throw new Error('Approve sharing this demo with Google Gemini first.');
-  const demo = demoForSession(session);
-  if (!demo) throw new Error('Gemini is available for the two demo sessions.');
-  if (path === 'ask' && (!question || !demo.questions.includes(question))) throw new Error('Choose one of the demo questions.');
+  if (!isApproved(session, serviceUrl)) throw new Error('Approve sharing this session with Google Gemini first.');
+  const transcript = transcriptOf(session);
+  if (!transcript.trim() || transcript.length > 200000) throw new Error('Use a transcript between 1 and 200,000 characters.');
+  if (path === 'ask' && (!question?.trim() || question.length > 1000)) throw new Error('Enter a question of up to 1,000 characters.');
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000);
+  const timeout = setTimeout(() => controller.abort(), 75000);
   try {
     const response = await fetch(serviceUrl + '/' + path, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-      body: JSON.stringify({ mode: session.mode, transcript: transcriptOf(session), question,
-        demoId: session.demoId, approvedProvider: session.approvedProvider }),
+      body: JSON.stringify({ mode: session.mode, transcript, question: question?.trim(), approvedProvider: session.approvedProvider }),
     });
     const data = await response.json().catch(() => {
       if (controller.signal.aborted) throw new Error('The notes request timed out. Try again.');

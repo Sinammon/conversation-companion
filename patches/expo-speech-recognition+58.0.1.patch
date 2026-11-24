@@ -1,0 +1,211 @@
+diff --git a/node_modules/expo-speech-recognition/build/ExpoSpeechRecognitionModule.web.js b/node_modules/expo-speech-recognition/build/ExpoSpeechRecognitionModule.web.js
+index 4058dc9..0c8e710 100644
+--- a/node_modules/expo-speech-recognition/build/ExpoSpeechRecognitionModule.web.js
++++ b/node_modules/expo-speech-recognition/build/ExpoSpeechRecognitionModule.web.js
+@@ -88,7 +88,11 @@ class ExpoSpeechRecognitionModuleWeb extends NativeModule {
+             }
+         });
+         // Start the speech recognition!
+-        _speechRecognitionRef.start();
++        if (options.companionAudioTrack) {
++            _speechRecognitionRef.start(options.companionAudioTrack);
++        } else {
++            _speechRecognitionRef.start();
++        }
+     }
+     getStateAsync() {
+         console.warn("getStateAsync is not supported on web. Returning 'inactive'.");
+diff --git a/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognitionModule.swift b/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognitionModule.swift
+index 9dc9082..dd36352 100644
+--- a/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognitionModule.swift
++++ b/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognitionModule.swift
+@@ -272,6 +272,28 @@ public class ExpoSpeechRecognitionModule: Module {
+       }
+     }
+ 
++    Function("listCompanionInputsIOS") { () throws -> [[String: String]] in
++      let session = AVAudioSession.sharedInstance()
++      if let inputs = session.availableInputs, !inputs.isEmpty {
++        return inputs.map { ["id": $0.uid, "label": $0.portName] }
++      }
++      let category = session.category
++      let mode = session.mode
++      let options = session.categoryOptions
++      defer {
++        try? session.setActive(false, options: .notifyOthersOnDeactivation)
++        try? session.setCategory(category, mode: mode, options: options)
++      }
++      try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetooth])
++      try session.setActive(true)
++      return (session.availableInputs ?? []).map { ["id": $0.uid, "label": $0.portName] }
++    }
++
++    Function("getCompanionInputIOS") { () -> [String: String]? in
++      guard let input = AVAudioSession.sharedInstance().currentRoute.inputs.first else { return nil }
++      return ["id": input.uid, "label": input.portName]
++    }
++
+     Function("setCategoryIOS") { (options: SetCategoryOptions) in
+       // Convert the array of category options to a bitmask
+       let categoryOptions = options.categoryOptions.reduce(AVAudioSession.CategoryOptions()) {
+@@ -546,6 +568,8 @@ public class ExpoSpeechRecognitionModule: Module {
+         sendEvent("error", ["error": "audio-capture", "message": recognitionError.message])
+       case .audioSessionInterrupted:
+         sendEvent("error", ["error": "interrupted", "message": recognitionError.message])
++      case .companionInputUnavailable:
++        sendEvent("error", ["error": "audio-capture", "message": recognitionError.message])
+       case .audioRouteChanged:
+         sendEvent("error", ["error": "audio-capture", "message": recognitionError.message])
+       }
+diff --git a/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognizer.swift b/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognizer.swift
+index b278425..70632e5 100644
+--- a/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognizer.swift
++++ b/node_modules/expo-speech-recognition/ios/ExpoSpeechRecognizer.swift
+@@ -13,6 +13,7 @@ enum RecognizerError: Error {
+   case audioInputBusy
+   case audioSessionInterrupted
+   case audioRouteChanged
++  case companionInputUnavailable
+ 
+   var message: String {
+     switch self {
+@@ -25,6 +26,7 @@ enum RecognizerError: Error {
+     case .audioInputBusy: return "The audio input is busy"
+     case .audioSessionInterrupted: return "Audio session was interrupted"
+     case .audioRouteChanged: return "Audio route changed and failed to restart the audio engine"
++    case .companionInputUnavailable: return "The selected microphone disconnected or is unavailable. Choose a microphone to continue."
+     }
+   }
+ }
+@@ -40,6 +42,7 @@ actor ExpoSpeechRecognizer: ObservableObject {
+   private var outputFileUrl: URL?
+   private var audioSessionInterruptionObserver: NSObjectProtocol?
+   private var audioSessionRouteChangeObserver: NSObjectProtocol?
++  private var ownsPreferredInput = false
+   /// Whether the recognizer has been stopped by the user or the timer has timed out
+   private var stoppedListening = false
+   /// Epoch milliseconds when the audio engine stopped
+@@ -206,7 +209,7 @@ actor ExpoSpeechRecognizer: ObservableObject {
+     startHandler: @escaping () -> Void,
+     speechStartHandler: @escaping () -> Void,
+     audioStartHandler: @escaping (String?, Double) -> Void
+-  ) {
++  ) async {
+     // Reset the speech recognizer before starting
+     reset(andEmitEnd: false)
+ 
+@@ -233,7 +236,7 @@ actor ExpoSpeechRecognizer: ObservableObject {
+       if let audioSource = options.audioSource?.uri {
+         try prepareFileRecognition(request: request, url: URL(string: audioSource)!)
+       } else {
+-        try prepareMicrophoneRecognition(request: request, options: options)
++        try await prepareMicrophoneRecognition(request: request, options: options)
+       }
+       let audioStartTimestampMillis = Date().timeIntervalSince1970 * 1000
+ 
+@@ -252,6 +255,8 @@ actor ExpoSpeechRecognizer: ObservableObject {
+ 
+       // If user has opted in to recording, emit an "audiostart" event with the path
+       audioStartHandler(outputFileUrl?.absoluteString, audioStartTimestampMillis)
++    } catch is CancellationError {
++      // The stop or abort path has already reset this request.
+     } catch {
+       errorHandler(error)
+       reset(andEmitEnd: true)
+@@ -337,8 +342,28 @@ actor ExpoSpeechRecognizer: ObservableObject {
+   private func prepareMicrophoneRecognition(
+     request: SFSpeechRecognitionRequest,
+     options: SpeechRecognitionOptions
+-  ) throws {
++  ) async throws {
+     try Self.setupAudioSession(options.iosCategory)
++    if let uid = options.companionInputUID {
++      let session = AVAudioSession.sharedInstance()
++      guard let input = session.availableInputs?.first(where: { $0.uid == uid }) else {
++        throw RecognizerError.companionInputUnavailable
++      }
++      do {
++        try session.setPreferredInput(input)
++        ownsPreferredInput = true
++      } catch {
++        throw RecognizerError.companionInputUnavailable
++      }
++      for _ in 0..<20 {
++        if session.currentRoute.inputs.first?.uid == uid { break }
++        try await Task.sleep(nanoseconds: 50_000_000)
++        guard self.request === request else { throw CancellationError() }
++      }
++      guard session.currentRoute.inputs.first?.uid == uid else {
++        throw RecognizerError.companionInputUnavailable
++      }
++    }
+     registerAudioSessionObservers()
+     self.audioEngine = AVAudioEngine()
+ 
+@@ -550,6 +575,10 @@ actor ExpoSpeechRecognizer: ObservableObject {
+     }
+     audioSessionInterruptionObserver = nil
+     audioSessionRouteChangeObserver = nil
++    if ownsPreferredInput {
++      try? AVAudioSession.sharedInstance().setPreferredInput(nil)
++      ownsPreferredInput = false
++    }
+ 
+     if let audioFileRef = audioFileRef {
+       ExtAudioFileDispose(audioFileRef)
+@@ -769,6 +798,14 @@ actor ExpoSpeechRecognizer: ObservableObject {
+   ) {
+     // We only care about route changes when the recognizer is active
+     if taskState == .running || taskState == .starting {
++      guard !stoppedListening, task != nil else { return }
++      if let uid = options?.companionInputUID,
++         AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid != uid {
++        emitError(.companionInputUnavailable)
++        stopListening()
++        reset(andEmitEnd: true)
++        return
++      }
+       // App deactivation can emit a route change while the audio session is
+       // being torn down. In that case we should stop recognition instead of
+       // trying to reconnect the engine again.
+diff --git a/node_modules/expo-speech-recognition/ios/SpeechRecognitionOptions.swift b/node_modules/expo-speech-recognition/ios/SpeechRecognitionOptions.swift
+index d38a050..e76f2e1 100644
+--- a/node_modules/expo-speech-recognition/ios/SpeechRecognitionOptions.swift
++++ b/node_modules/expo-speech-recognition/ios/SpeechRecognitionOptions.swift
+@@ -32,6 +32,9 @@ struct SpeechRecognitionOptions: Record {
+   @Field
+   var iosTaskHint: IOSTaskHint? = nil
+ 
++  @Field
++  var companionInputUID: String? = nil
++
+   @Field
+   var iosCategory: SetCategoryOptions? = nil
+ 
+diff --git a/node_modules/expo-speech-recognition/src/ExpoSpeechRecognitionModule.web.ts b/node_modules/expo-speech-recognition/src/ExpoSpeechRecognitionModule.web.ts
+index 88b7051..563a52c 100644
+--- a/node_modules/expo-speech-recognition/src/ExpoSpeechRecognitionModule.web.ts
++++ b/node_modules/expo-speech-recognition/src/ExpoSpeechRecognitionModule.web.ts
+@@ -114,7 +114,7 @@ class ExpoSpeechRecognitionModuleWeb extends NativeModule<ExpoSpeechRecognitionN
+     }
+   }
+ 
+-  start(options: ExpoSpeechRecognitionOptions) {
++  start(options: ExpoSpeechRecognitionOptions & { companionAudioTrack?: MediaStreamTrack }) {
+     const SpeechRecognitionClass =
+       typeof webkitSpeechRecognition !== "undefined"
+         ? webkitSpeechRecognition
+@@ -136,7 +136,12 @@ class ExpoSpeechRecognitionModuleWeb extends NativeModule<ExpoSpeechRecognitionN
+     });
+ 
+     // Start the speech recognition!
+-    _speechRecognitionRef.start();
++    if (options.companionAudioTrack) {
++      const startWithAudio: (track: MediaStreamTrack) => void = _speechRecognitionRef.start;
++      startWithAudio.call(_speechRecognitionRef, options.companionAudioTrack);
++    } else {
++      _speechRecognitionRef.start();
++    }
+   }
+ 
+   getStateAsync() {
