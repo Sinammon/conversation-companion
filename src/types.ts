@@ -16,4 +16,5 @@ export type Session = {
   approvedProvider?: 'gemini';
   demoId?: DemoId;
   notes?: Notes;
+  bookmarks?: number[];
 };

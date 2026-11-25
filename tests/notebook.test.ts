@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { schema, writeSession, listSessions, removeSession, writeNotes } from '../src/storage/sql.ts';
+import { schema, writeSession, listSessions, removeSession, writeNotes, writeBookmarks } from '../src/storage/sql.ts';
 
 test('a saved session reopens, updates by id, lists newest first, and can be deleted', () => {
   const db = new DatabaseSync(':memory:');
@@ -27,6 +27,10 @@ test('a completed background notes job only updates a surviving session with mat
   assert.equal(update.run('{}', 'legacy', doc.approvedUrl).changes, 0);
   assert.equal(update.run('{"summary":"Saved"}', 'chosen', doc.approvedUrl).changes, 1);
   assert.equal(JSON.parse(db.prepare(listSessions).get()!.data as string).notes.summary, 'Saved');
+  db.prepare(writeBookmarks).run('[0]', 'chosen');
+  const marked = JSON.parse(db.prepare(listSessions).get()!.data as string);
+  assert.deepEqual(marked.bookmarks, [0]);
+  assert.equal(marked.notes.summary, 'Saved');
   db.prepare(removeSession).run('chosen');
   assert.equal(update.run('{}', 'chosen', doc.approvedUrl).changes, 0);
   db.close();

@@ -40,6 +40,8 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const [saveError, setSaveError] = useState('');
   const [discard, setDiscard] = useState(false);
   const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const latest = cap.transcript.final.length - 1;
   const [focus, setFocus] = useState(false);
   const follow = pausedAt === null;
   const unread = cap.transcript.final.length - (pausedAt ?? cap.transcript.final.length);
@@ -147,7 +149,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     setSaveError('');
     const date = cap.startedAt.current;
     try {
-      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI: false, captions: finish(cap.transcript),
+      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI: false, bookmarks, captions: finish(cap.transcript),
         title: title.trim() || mode + ' · ' + new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
     } catch {
       setSaveError('Could not save on this device. Your captions are still here. Try saving again.');
@@ -200,6 +202,8 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         {!discard && (!follow || !stopped) && <Action secondary icon={follow ? 'pause' : 'arrow'}
           label={follow ? 'Pause auto-scroll' : stopped ? 'Go to latest caption' : unread ? `Back to live · ${unread} new caption${unread === 1 ? '' : 's'}` : 'Back to live'}
           onPress={() => setPausedAt(follow ? cap.transcript.final.length : null)} />}
+        {!discard && !focus && <Action secondary icon="bookmark" label={bookmarks.includes(latest) ? 'Latest caption bookmarked' : 'Bookmark latest caption'}
+          disabled={latest < 0 || bookmarks.includes(latest) || saving} onPress={() => setBookmarks(previous => previous.includes(latest) ? previous : [...previous, latest])} />}
         {discard ? <View style={s.group}><Copy>Leave without saving these captions?</Copy><Action label="Keep session" onPress={() => setDiscard(false)} /><Action secondary label="Discard and leave" onPress={onExit} /></View>
           : stopped ? <>{microphones}<Action label={saving ? 'Saving…' : 'Save session'} disabled={!hasCaptions || saving} icon="book" onPress={() => void save()} />
             <Action secondary label="Resume captions" icon="mic" disabled={saving || loadingInputs || cap.needsMicrophoneChoice} onPress={start} /></>

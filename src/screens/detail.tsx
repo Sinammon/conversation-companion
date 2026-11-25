@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { Action, c, Choices, Copy, formatTime, Heading, Label, Page, s } from '../components/ui';
+import { TranscriptReview } from '../components/transcript-review';
 import { ask, serviceUrl } from '../ai/client';
 import { isApproved } from '../ai/consent';
 import { demoForSession, transcriptOf } from '../ai/demos';
 import type { NoteJob } from '../ai/use-notes';
 import type { Answer, Session } from '../types';
 
-export function Detail({ session, size, job, generate, onUpdate, onDelete, onBack }: {
+export function Detail({ session, size, job, generate, onBookmarks, onUpdate, onDelete, onBack }: {
+  onBookmarks: (indices: number[]) => Promise<void>;
   job?: NoteJob; generate: (s: Session) => Promise<void>;
   session: Session; size: number; onUpdate: (s: Session) => Promise<void>; onDelete: () => Promise<void>; onBack: () => void;
 }) {
@@ -52,8 +54,7 @@ export function Detail({ session, size, job, generate, onUpdate, onDelete, onBac
     {tab === 'Notes' && job?.busy && <Copy>Writing notes…</Copy>}
     {tab === 'Notes' && !!job?.error && <Copy alert>{job.error}</Copy>}
     {tab === 'Transcript' && <>
-      {session.captions.map((line, index) => <View key={index} style={s.panel}>
-        <Label>{formatTime(line.at)}</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>{line.text}</Copy></View>)}
+      <TranscriptReview session={session} size={size} busy={!!busy} onBookmarks={marks => void run('Saving bookmark…', () => onBookmarks(marks))} />
       {confirm ? <View style={s.group}><Copy>Delete this session and its notes from this device?</Copy><Action label="Keep session" secondary onPress={() => setConfirm(false)} />
         <Action label="Delete permanently" disabled={!!busy} onPress={() => void run('Deleting…', onDelete)} /></View>
         : <Action secondary label="Delete session" disabled={!!busy} onPress={() => setConfirm(true)} />}

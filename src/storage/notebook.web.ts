@@ -16,6 +16,12 @@ export async function saveSession(session: Session) {
   localStorage.setItem(prefix + session.id, JSON.stringify(session));
 }
 export async function deleteSession(id: string) { localStorage.removeItem(prefix + id); }
+export async function saveBookmarks(id: string, bookmarks: number[]) {
+  const raw = localStorage.getItem(prefix + id);
+  if (!raw) return false;
+  localStorage.setItem(prefix + id, JSON.stringify({ ...JSON.parse(raw), bookmarks }));
+  return true;
+}
 export async function saveNotes(id: string, notes: Notes, url: string) {
   const raw = localStorage.getItem(prefix + id);
   if (!raw) return false;

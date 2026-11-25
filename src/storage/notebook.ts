@@ -1,7 +1,7 @@
 import { openDatabaseAsync } from 'expo-sqlite';
 import type { Notes, Session } from '../types';
 import { decodeSessions } from './decode-sessions';
-import { schema, listSessions, writeSession, removeSession, writeNotes } from './sql';
+import { schema, listSessions, writeSession, removeSession, writeNotes, writeBookmarks } from './sql';
 
 async function open() {
   const db = await openDatabaseAsync('companion.db');
@@ -21,6 +21,9 @@ export async function saveSession(session: Session) {
 }
 export async function deleteSession(id: string) {
   await (await database()).runAsync(removeSession, id);
+}
+export async function saveBookmarks(id: string, bookmarks: number[]) {
+  return (await (await database()).runAsync(writeBookmarks, JSON.stringify(bookmarks), id)).changes > 0;
 }
 export async function saveNotes(id: string, notes: Notes, url: string) {
   return (await (await database()).runAsync(writeNotes, JSON.stringify(notes), id, url)).changes > 0;

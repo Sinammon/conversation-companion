@@ -10,6 +10,7 @@ export const c = {
 export const font = 'Inter_400Regular';
 export const bold = 'Inter_600SemiBold';
 const paths = {
+  bookmark: 'M6 3h12v18l-6-4-6 4z',
   mic: 'M9 6a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3 M9 22h6',
   book: 'M4 4h13a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z M7 4v16 M10 8h6 M10 11h4',
   tune: 'M3 6h6m4 0h8M3 12h12m4 0h2M3 18h3m4 0h11 M9 4v4m6 2v4M6 16v4',
