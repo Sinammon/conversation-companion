@@ -21,6 +21,9 @@ test('a long caption feed stays put while paused and follows again on request', 
   await page.getByRole('button', { name: 'New session' }).click();
   await page.getByRole('checkbox', { name: /Everyone agrees/ }).check();
   await page.getByRole('button', { name: 'Start live captions' }).click();
+  await page.getByRole('button', { name: 'Focus captions' }).click();
+  await expect(page.getByRole('button', { name: 'Exit focus' })).toBeVisible();
+  await expect(page.getByText('Listening', { exact: true })).toBeVisible();
   await page.evaluate(() => Reflect.get(window, 'addCaptions')(1, 80));
   const feed = page.getByTestId('caption-feed');
   await expect(page.getByText(/^Caption 80\./)).toBeInViewport();
@@ -31,6 +34,6 @@ test('a long caption feed stays put while paused and follows again on request', 
   await expect(page.getByText(/^Caption 100\./)).toBeAttached();
   await expect(page.getByText(/^Caption 1\./)).toBeInViewport();
   await expect(page.getByText(/^Caption 100\./)).not.toBeInViewport();
-  await page.getByRole('button', { name: 'Follow live captions' }).click();
+  await page.getByRole('button', { name: 'Back to live · 20 new captions' }).click();
   await expect(page.getByText(/^Caption 100\./)).toBeInViewport();
 });

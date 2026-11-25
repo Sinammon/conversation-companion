@@ -39,7 +39,10 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [discard, setDiscard] = useState(false);
-  const [follow, setFollow] = useState(true);
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [focus, setFocus] = useState(false);
+  const follow = pausedAt === null;
+  const unread = cap.transcript.final.length - (pausedAt ?? cap.transcript.final.length);
   const [showSize, setShowSize] = useState(false);
   const [input, setInput] = useState<MicrophoneInput | null>(null);
   const [inputs, setInputs] = useState<MicrophoneInput[]>([]);
@@ -174,7 +177,8 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     </Page> : <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 720, padding: compact ? 10 : 18, gap: compact ? 6 : 11 }}>
       <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '42%' : undefined }} contentContainerStyle={{ gap: compact ? 6 : 11 }} keyboardShouldPersistTaps="handled">
         <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}>
-          <Action label="Leave session" secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} />
+          {!focus && <Action label="Leave session" secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} />}
+          <Action label={focus ? 'Exit focus' : 'Focus captions'} secondary onPress={() => setFocus(!focus)} />
           <Action label="Caption size" secondary icon="tune" expanded={showSize} onPress={() => setShowSize(!showSize)} />
         </View>
         <View style={[s.row, { justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, flexWrap: 'wrap',
@@ -182,22 +186,24 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
           <View style={{ flexShrink: 1 }}>
             <Label>{mode} · <Text style={{ fontVariant: ['tabular-nums'] }}>{formatTime(cap.elapsed)}</Text></Label>
             <Text accessibilityLiveRegion="polite" style={[s.label, { color: listening ? c.record : c.ink }]}>{status}</Text>
-            {listening && <Label>Microphone in use: {cap.inputInUse}</Label>}
+            {listening && !focus && <Label>Microphone in use: {cap.inputInUse}</Label>}
           </View>
-          {!compact && <View style={s.row}><RecordingMeter listening={listening} /><Orb size={56} listening={listening} track={cap.audioTrack} /></View>}
+          {!compact && !focus && <View style={s.row}><RecordingMeter listening={listening} /><Orb size={56} listening={listening} track={cap.audioTrack} /></View>}
         </View>
-        <Text accessibilityRole="header" style={s.subtitle}>Live captions</Text>
+        {!focus && <Text accessibilityRole="header" style={s.subtitle}>Live captions</Text>}
         {showSize && <View style={{ gap: 5 }}><CaptionSizeControl size={size} onChange={onSizeChange} />{!!sizeError && <Copy alert>{sizeError}</Copy>}</View>}
       </ScrollView>
       <CaptionFeed transcript={cap.transcript} size={size} follow={follow} stopped={stopped} />
       {Platform.OS === 'android' && <Text accessibilityLiveRegion="polite" style={{ height: 1, overflow: 'hidden' }}>{cap.transcript.final.at(-1)?.text}</Text>}
       <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '34%' : '50%' }} contentContainerStyle={{ gap: 8 }}>
         {!!(cap.error || saveError) && <Copy alert>{saveError || cap.error}</Copy>}
+        {!discard && (!follow || !stopped) && <Action secondary icon={follow ? 'pause' : 'arrow'}
+          label={follow ? 'Pause auto-scroll' : stopped ? 'Go to latest caption' : unread ? `Back to live · ${unread} new caption${unread === 1 ? '' : 's'}` : 'Back to live'}
+          onPress={() => setPausedAt(follow ? cap.transcript.final.length : null)} />}
         {discard ? <View style={s.group}><Copy>Leave without saving these captions?</Copy><Action label="Keep session" onPress={() => setDiscard(false)} /><Action secondary label="Discard and leave" onPress={onExit} /></View>
           : stopped ? <>{microphones}<Action label={saving ? 'Saving…' : 'Save session'} disabled={!hasCaptions || saving} icon="book" onPress={() => void save()} />
             <Action secondary label="Resume captions" icon="mic" disabled={saving || loadingInputs || cap.needsMicrophoneChoice} onPress={start} /></>
-          : <><Action secondary label={follow ? 'Pause auto-scroll' : 'Follow live captions'} onPress={() => setFollow(!follow)} />
-            <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} /></>}
+          : <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} />}
       </ScrollView>
     </View>}
   </View>;
