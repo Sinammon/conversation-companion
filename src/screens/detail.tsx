@@ -8,12 +8,13 @@ import { demoForSession, transcriptOf } from '../ai/demos';
 import type { NoteJob } from '../ai/use-notes';
 import type { Answer, Session } from '../types';
 
-export function Detail({ session, size, job, generate, onBookmarks, onUpdate, onDelete, onBack }: {
+export function Detail({ session, initialQuery, size, job, generate, onBookmarks, onUpdate, onDelete, onBack }: {
+  initialQuery: string;
   onBookmarks: (indices: number[]) => Promise<void>;
   job?: NoteJob; generate: (s: Session) => Promise<void>;
   session: Session; size: number; onUpdate: (s: Session) => Promise<void>; onDelete: () => Promise<void>; onBack: () => void;
 }) {
-  const [tab, setTab] = useState<'Transcript' | 'Notes' | 'Ask'>(session.notes ? 'Notes' : 'Transcript');
+  const [tab, setTab] = useState<'Transcript' | 'Notes' | 'Ask'>(!initialQuery && session.notes ? 'Notes' : 'Transcript');
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState('');
@@ -54,7 +55,7 @@ export function Detail({ session, size, job, generate, onBookmarks, onUpdate, on
     {tab === 'Notes' && job?.busy && <Copy>Writing notes…</Copy>}
     {tab === 'Notes' && !!job?.error && <Copy alert>{job.error}</Copy>}
     {tab === 'Transcript' && <>
-      <TranscriptReview session={session} size={size} busy={!!busy} onBookmarks={marks => void run('Saving bookmark…', () => onBookmarks(marks))} />
+      <TranscriptReview initialQuery={initialQuery} session={session} size={size} busy={!!busy} onBookmarks={marks => void run('Saving bookmark…', () => onBookmarks(marks))} />
       {confirm ? <View style={s.group}><Copy>Delete this session and its notes from this device?</Copy><Action label="Keep session" secondary onPress={() => setConfirm(false)} />
         <Action label="Delete permanently" disabled={!!busy} onPress={() => void run('Deleting…', onDelete)} /></View>
         : <Action secondary label="Delete session" disabled={!!busy} onPress={() => setConfirm(true)} />}

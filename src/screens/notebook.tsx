@@ -1,20 +1,23 @@
 import React from 'react';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import type { DemoId, Session } from '../types';
 import { demoIds, demos } from '../ai/demos';
 import { Action, c, Copy, formatTime, Heading, Icon, Page, s, bold } from '../components/ui';
 
+import { findSessions } from '../storage/search';
 import { Orb } from '../components/orb';
 import { Ribbons } from '../components/ribbons';
 
 export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoError, hasUnreadableRecords, previewMessage }: {
-  sessions: Session[]; onNew: () => void; onOpen: (s: Session) => void;
+  sessions: Session[]; onNew: () => void; onOpen: (s: Session, query?: string) => void;
   onDemo: (id: DemoId) => void; openingDemo: boolean; demoError: string; hasUnreadableRecords: boolean; previewMessage: string;
 }) {
   const { width, fontScale } = useWindowDimensions();
   const wide = width >= 850;
   const singleColumn = width / fontScale < 350;
   const showOrb = fontScale < 1.35;
+  const [query, setQuery] = React.useState('');
+  const results = React.useMemo(() => findSessions(sessions, query), [sessions, query]);
   const inset = wide ? 36 : 20;
   return <Page>
     <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}><Heading>My notebook</Heading>
@@ -55,10 +58,14 @@ export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoErr
         <Copy style={{ fontWeight: '700' }}>Your notebook is empty</Copy>
         <Copy muted style={{ textAlign: 'center', maxWidth: 280 }}>Saved lectures and meetings will appear here.</Copy>
       </View>}
-      {sessions.map(session => <Pressable dataSet={{ lift: true }} accessibilityRole="button" key={session.id} onPress={() => onOpen(session)}
+      {!!sessions.length && <TextInput accessibilityLabel="Search saved sessions" placeholder="Search titles and captions"
+        placeholderTextColor={c.muted} style={s.input} value={query} onChangeText={setQuery} />}
+      {!!sessions.length && !results.length && <Copy muted>No sessions match your search.</Copy>}
+      {results.map(({session, excerpt}) => <Pressable dataSet={{ lift: true }} accessibilityRole="button" key={session.id} onPress={() => onOpen(session, excerpt ? query.trim() : '')}
         style={({ pressed }) => [s.row, { padding: 16, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.65 : 1 }]}>
         <View style={{ backgroundColor: c.wash, padding: 11, borderRadius: 9 }}><Icon name={session.mode === 'Lecture' ? 'lecture' : 'people'} /></View>
         <View style={{ flex: 1, gap: 4 }}><Text style={[s.body, { fontWeight: '700' }]}>{session.title}</Text>
+          {!!excerpt && <Copy muted>{excerpt}</Copy>}
           <View style={[s.row, { flexWrap: 'wrap', gap: 8 }]}>
             <Text style={[s.label, { color: session.mode === 'Lecture' ? '#A4EFDF' : '#DCC5FF', backgroundColor: session.mode === 'Lecture' ? '#264C54' : '#493E60',
               paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }]}>{session.mode}</Text>

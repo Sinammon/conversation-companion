@@ -37,6 +37,7 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [hasUnreadableRecords, setHasUnreadableRecords] = useState(false);
   const { jobs, generate } = useNotes((id, notes) => setSessions(previous => previous.map(s => s.id === id ? { ...s, notes } : s)));
+  const [openingQuery, setOpeningQuery] = useState('');
   const [current, setCurrent] = useState('');
   const demoLock = useRef(false);
   const [openingDemo, setOpeningDemo] = useState(false);
@@ -65,7 +66,8 @@ export default function App() {
     await saveSession(session);
     setSessions(prev => [session, ...prev.filter(s => s.id !== session.id)].sort((a, b) => b.startedAt - a.startedAt));
   }
-  function openSession(session: Session) {
+  function openSession(session: Session, query = '') {
+    setOpeningQuery(query);
     setCurrent(session.id);
     setScreen('Detail');
   }
@@ -101,7 +103,7 @@ export default function App() {
     screen === 'Notebook' ? <Notebook sessions={sessions.filter(item => !item.demoId)} hasUnreadableRecords={hasUnreadableRecords} onNew={() => setScreen('Capture')} previewMessage={previewMessage} onOpen={openSession}
       onDemo={id => void openDemo(id)} openingDemo={openingDemo} demoError={demoError} /> :
     screen === 'Capture' && speech ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); openSession(s); }} /> :
-    screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
+    screen === 'Detail' && session ? <Detail key={session.id} session={session} initialQuery={openingQuery} size={size} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
       onBookmarks={async bookmarks => {
         if (!await saveBookmarks(session.id, bookmarks)) throw new Error('This session could not be found.');
         setSessions(prev => prev.map(item => item.id === session.id ? { ...item, bookmarks } : item));

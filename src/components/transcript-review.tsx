@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import type { Session } from '../types';
 import { passageIndices } from '../capture/bookmarks';
-import { Action, Copy, formatTime, Label, s } from './ui';
+import { matchingIndices } from '../storage/search';
+import { Action, c, Copy, formatTime, Label, s } from './ui';
 
-export function TranscriptReview({ session, size, busy, onBookmarks }: {
-  session: Session; size: number; busy: boolean; onBookmarks: (marks: number[]) => void;
+export function TranscriptReview({ session, size, busy, onBookmarks, initialQuery }: {
+  initialQuery: string; session: Session; size: number; busy: boolean; onBookmarks: (marks: number[]) => void;
 }) {
+  const [query, setQuery] = useState(initialQuery);
   const [passage, setPassage] = useState<number | null>(null);
   const marks = session.bookmarks ?? [];
   const { captions } = session;
-  const indices = passage === null ? captions.map((_, i) => i) : passageIndices(passage, captions.length);
+  const indices = passage === null ? matchingIndices(captions, query) : passageIndices(passage, captions.length);
   return <>
+    <TextInput accessibilityLabel="Find in transcript" placeholder="Find in transcript" placeholderTextColor={c.muted}
+      value={query} onChangeText={text => { setPassage(null); setQuery(text); }} style={s.input} />
+    {!indices.length && !!query.trim() && <Copy muted>No matching captions.</Copy>}
     {!!marks.length && <View style={s.group}><Label>Bookmarks</Label>
       {marks.map(i => <Action key={i} secondary icon="bookmark" label={`Open bookmark · ${formatTime(captions[i].at)} · Caption ${i + 1}`}
-        onPress={() => setPassage(i)} />)}
+        onPress={() => { setQuery(''); setPassage(i); }} />)}
     </View>}
     {passage !== null && <Action secondary label="Show full transcript" onPress={() => setPassage(null)} />}
     {indices.map(i => {
