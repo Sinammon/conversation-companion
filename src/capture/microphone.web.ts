@@ -10,18 +10,25 @@ export function canChooseMicrophone() {
       typeof Reflect.get(window, 'webkitSpeechRecognition') === 'function');
 }
 
-export async function listMicrophones(): Promise<MicrophoneInput[]> {
-  if (!canChooseMicrophone()) return [];
-  let stream;
+export async function listMicrophones(signal: AbortSignal): Promise<MicrophoneInput[]> {
+  if (signal.aborted || !canChooseMicrophone()) return [];
+  let stream: MediaStream | undefined;
+  const release = () => {
+    stream?.getTracks().forEach(track => track.stop());
+    stream = undefined;
+  };
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (signal.aborted) return [];
+    signal.addEventListener('abort', release, { once: true });
     const devices = (await navigator.mediaDevices.enumerateDevices())
       .filter(device => device.kind === 'audioinput' && device.deviceId && !['default', 'communications'].includes(device.deviceId));
     return devices.map((device, index) => ({ id: device.deviceId, label: device.label || 'Microphone ' + (index + 1) }));
   } catch {
     throw new Error('Allow microphone access in Chrome to list microphones.');
   } finally {
-    stream?.getTracks().forEach(track => track.stop());
+    signal.removeEventListener('abort', release);
+    release();
   }
 }
 

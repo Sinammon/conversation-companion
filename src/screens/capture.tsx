@@ -43,6 +43,8 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const [showInputs, setShowInputs] = useState(false);
   const [loadingInputs, setLoadingInputs] = useState(false);
   const [inputError, setInputError] = useState('');
+  const discovery = useRef<AbortController | null>(null);
+  React.useEffect(() => () => discovery.current?.abort(), []);
   const list = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const lock = useRef(false);
   const capturing = cap.startedAt.current !== 0;
@@ -56,20 +58,40 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
       setShowInputs(false);
       return;
     }
+    const controller = new AbortController();
+    discovery.current = controller;
     setShowInputs(true);
     setLoadingInputs(true);
     setInputError('');
     setInputs([]);
     try {
-      setInputs(await listMicrophones());
+      const available = await listMicrophones(controller.signal);
+      if (!controller.signal.aborted) setInputs(available);
     } catch (error) {
-      setInputError(error instanceof Error ? error.message : 'Could not list microphones. Try again.');
-    } finally { setLoadingInputs(false); }
+      if (!controller.signal.aborted) {
+        setInputError(error instanceof Error ? error.message : 'Could not list microphones. Try again.');
+      }
+    } finally {
+      if (discovery.current === controller) {
+        discovery.current = null;
+        if (!controller.signal.aborted) setLoadingInputs(false);
+      }
+    }
   }
   function selectInput(selected: MicrophoneInput | null) {
     setInput(selected);
     setShowInputs(false);
     cap.acceptMicrophoneChoice();
+  }
+  function toggleConsent() {
+    if (consent) {
+      cap.stop();
+      discovery.current?.abort();
+      discovery.current = null;
+      setLoadingInputs(false);
+      setShowInputs(false);
+    }
+    setConsent(!consent);
   }
   function start() {
     setShowInputs(false);
@@ -140,7 +162,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
       <View style={s.panel}>
         <View style={s.row}><Icon name="shield" size={19} /><Label>Before you start</Label></View>
         <Copy muted>Your device’s speech service may process audio online. This app saves transcript text on this device and does not keep audio files.</Copy>
-        <Check value={consent} toggle={() => setConsent(!consent)} title="Everyone agrees to transcription." />
+        <Check value={consent} toggle={toggleConsent} title="Everyone agrees to transcription." />
       </View>
       {microphones}
       {!!cap.error && <Copy alert>{cap.error}</Copy>}

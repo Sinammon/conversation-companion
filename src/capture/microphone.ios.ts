@@ -7,9 +7,10 @@ const router = speech as typeof speech & {
 };
 
 export function canChooseMicrophone() { return typeof router.listCompanionInputsIOS === 'function'; }
-export async function listMicrophones() {
-  if (!router.listCompanionInputsIOS) return [];
+export async function listMicrophones(signal: AbortSignal) {
+  if (signal.aborted || !router.listCompanionInputsIOS) return [];
   const permission = await speech.requestMicrophonePermissionsAsync();
+  if (signal.aborted) return [];
   if (!permission.granted) throw new Error('Allow microphone access in iPhone Settings to list microphones.');
   return router.listCompanionInputsIOS();
 }
