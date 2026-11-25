@@ -1,6 +1,6 @@
 import React from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { ImageSourcePropType, TextStyle, ViewStyle } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { TextStyle, ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 export const c = {
@@ -22,18 +22,7 @@ const paths = {
   stop: 'M6 6h12v12H6z', pause: 'M8 5v14 M16 5v14', sound: 'M3 10v4m4-8v12m5-16v20m5-17v14m4-9v4',
 };
 export type IconName = keyof typeof paths;
-const glassIcons: Partial<Record<IconName, ImageSourcePropType>> = {
-  mic: require('../../assets/icons8/microphone.png'),
-  book: require('../../assets/icons8/book.png'),
-  tune: require('../../assets/icons8/settings.png'),
-  lecture: require('../../assets/icons8/graduation-cap.png'),
-  people: require('../../assets/icons8/conference.png'),
-  note: require('../../assets/icons8/document.png'),
-  shield: require('../../assets/icons8/shield.png'),
-};
 export function Icon({ name, size = 22, color = c.ink }: { name: IconName; size?: number; color?: string }) {
-  const source = glassIcons[name];
-  if (source) return <Image source={source} accessible={false} aria-hidden resizeMode="contain" style={{ width: size, height: size }} />;
   return <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false} aria-hidden><Path d={paths[name]} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
 }
 export function Copy({ children, style, muted, alert }: { children: React.ReactNode; style?: TextStyle; muted?: boolean; alert?: boolean }) {
@@ -54,9 +43,7 @@ export function Action({ label, onPress, icon, secondary, recording, disabled, e
         <Stop offset="0" stopColor="#C7B4FF" /><Stop offset="1" stopColor="#8DE5DE" />
       </LinearGradient></Defs><Rect width="100%" height="100%" fill="url(#action)" /></Svg>
     </View>}
-    {icon && (glassIcons[icon] && !secondary
-      ? <View style={{ padding: 4, borderRadius: 12, backgroundColor: c.reader }}><Icon name={icon} size={17} /></View>
-      : <Icon name={icon} color={color} size={19} />)}<Text style={[s.actionText, { color }]}>{label}</Text>
+    {icon && <Icon name={icon} color={color} size={19} />}<Text style={[s.actionText, { color }]}>{label}</Text>
   </Pressable>;
 }
 export function Choices<T extends string>({ values, selected, onChange }: { values: readonly T[]; selected: T; onChange: (v: T) => void }) {

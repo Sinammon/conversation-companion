@@ -35,7 +35,7 @@ export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoErr
               flex: 1, overflow: 'hidden', padding: wide ? 22 : 16, gap: 12, backgroundColor: lecture ? '#234C55' : '#453C61',
               borderColor: lecture ? '#4A7B80' : '#71638D', opacity: pressed || openingDemo ? .8 : 1 }]}>
             <Ribbons color={tint} />
-            <View style={[s.row, { justifyContent: 'space-between' }]}><Icon name={lecture ? 'lecture' : 'people'} color={tint} size={40} /><Icon name="arrow" color={tint} size={18} /></View>
+            <View style={[s.row, { justifyContent: 'space-between' }]}><Icon name={lecture ? 'lecture' : 'people'} color={tint} size={28} /><Icon name="arrow" color={tint} size={18} /></View>
             <View><Text style={[s.body, { fontFamily: bold, fontSize: wide ? 21 : 17 }]}>{demos[id].title}</Text>
               <Text style={{ color: tint, fontSize: 13, marginTop: 4 }}>Sample transcript</Text></View>
           </Pressable>;

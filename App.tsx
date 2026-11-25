@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, KeyboardAvoidingView, Linking, Platform, StatusBar, Text, View, Pressable, useWindowDimensions } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, Text, View, Pressable, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
@@ -20,7 +20,6 @@ import { createDemoSession, demoSessionId } from './src/ai/demos';
 import { useNotes } from './src/ai/use-notes';
 import type { DemoId, Session } from './src/types';
 
-const creditStyle = { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#D3DDF0', padding: 10, textDecorationLine: 'underline' } as const;
 const transition = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
 const ScreenFrame = Platform.OS === 'web' ? View : Animated.View;
 
@@ -99,7 +98,6 @@ export default function App() {
       <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.reader }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>
       <View style={s.panel}><Label>AI notes service</Label><Copy>{serviceUrl || 'Not connected'}</Copy>
         <Copy muted>{serviceUrl ? 'Ask questions and make notes from saved transcripts after approving sharing for each session.' : 'Captions and saved sessions work independently. See the project README to connect Gemini.'}</Copy></View>
-      {Platform.OS !== 'web' && <Text accessibilityRole="link" onPress={() => void Linking.openURL('https://icons8.com')} style={creditStyle}>Icons by Icons8</Text>}
     </Page>;
 
   if (!fonts && !fontError) return <View style={{ flex: 1, backgroundColor: c.paper }} />;
@@ -127,7 +125,6 @@ export default function App() {
       </View> : content}
       </ScreenFrame>
       {!wide && topLevel && status === 'ready' && <LiquidNavbar active={screen} onChange={setScreen} />}
-      {Platform.OS === 'web' && <a href="https://icons8.com" style={{ ...creditStyle, alignSelf: 'center', padding: '4px 12px' }}>Icons by Icons8</a>}
     </KeyboardAvoidingView></View>
   </SafeAreaView></SafeAreaProvider>;
 }
