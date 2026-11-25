@@ -57,6 +57,8 @@ Choose an address reachable **from the phone** before building the app.
 
 Run `npm run server` in one terminal and `npm run web -- --lan` in another. Allow Node through the PC's firewall on the trusted network. The PC and phone must be on the same Wi-Fi. Open the Expo LAN URL on the phone and keep the PC running. Android development builds using local HTTP must be built with that URL configured. The app receives only the service URL. The Node server sends the key to Google.
 
+If `npm run server` reports `EADDRINUSE`, open `/health` at the address it prints. If the existing notes server is ready, use it. After editing `.env`, stop the existing server with Ctrl+C in its terminal and start it again. For `EADDRNOTAVAIL` or `ENOTFOUND`, update `HOST` to the PC’s current Wi-Fi IP or use `127.0.0.1` for local testing. If the IP changed, update `EXPO_PUBLIC_AI_URL` and `WEB_ORIGINS` too, then restart the server and Expo.
+
 Open the service address with `/health` appended in Safari to check connectivity. `missing-key` means the running server could not load a key. `ready` means the key is configured. Generate demo notes to verify that Google accepts it. For a browser running on another origin, add its exact scheme, host and port to `WEB_ORIGINS` and restart the server.
 
 Open a saved session and choose **Notes → Allow sharing with Google Gemini → Generate notes**. In **Ask**, type a question and tap **Ask question**. Approving sharing does not send content until you request notes or an answer. **Lecture demo** and **Meeting demo** are available to try the same features without recording. The service checks excerpts against the transcript and can return an insufficient-evidence answer.
