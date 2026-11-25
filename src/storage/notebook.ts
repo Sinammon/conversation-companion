@@ -1,5 +1,6 @@
 import { openDatabaseAsync } from 'expo-sqlite';
 import type { Notes, Session } from '../types';
+import { decodeSessions } from './decode-sessions';
 import { schema, listSessions, writeSession, removeSession, writeNotes } from './sql';
 
 async function open() {
@@ -11,9 +12,9 @@ let connection: ReturnType<typeof open> | undefined;
 function database() {
   return connection ??= open().catch(error => { connection = undefined; throw error; });
 }
-export async function loadSessions(): Promise<Session[]> {
-  const rows = await (await database()).getAllAsync<{ data: string }>(listSessions);
-  return rows.map(row => JSON.parse(row.data));
+export async function loadSessions() {
+  const rows = await (await database()).getAllAsync<{ id: string; data: string }>(listSessions);
+  return decodeSessions(rows);
 }
 export async function saveSession(session: Session) {
   await (await database()).runAsync(writeSession, session.id, session.startedAt, JSON.stringify(session));

@@ -1,11 +1,16 @@
 import type { Notes, Session } from '../types';
 import { isApproved } from '../ai/consent';
+import { decodeSessions } from './decode-sessions';
 
 const prefix = 'conversation-companion.session.';
-export async function loadSessions(): Promise<Session[]> {
-  return Object.keys(localStorage).filter(key => key.startsWith(prefix))
-    .map(key => JSON.parse(localStorage.getItem(key)!))
-    .sort((a, b) => b.startedAt - a.startedAt);
+export async function loadSessions() {
+  const rows = [];
+  for (const key of Object.keys(localStorage)) {
+    if (!key.startsWith(prefix)) continue;
+    const data = localStorage.getItem(key);
+    if (data !== null) rows.push({ id: key.slice(prefix.length), data });
+  }
+  return decodeSessions(rows);
 }
 export async function saveSession(session: Session) {
   localStorage.setItem(prefix + session.id, JSON.stringify(session));

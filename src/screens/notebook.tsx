@@ -7,9 +7,9 @@ import { Action, c, Copy, formatTime, Heading, Icon, Page, s, bold } from '../co
 import { Orb } from '../components/orb';
 import { Ribbons } from '../components/ribbons';
 
-export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoError }: {
+export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoError, hasUnreadableRecords }: {
   sessions: Session[]; onNew: () => void; onOpen: (s: Session) => void;
-  onDemo: (id: DemoId) => void; openingDemo: boolean; demoError: string;
+  onDemo: (id: DemoId) => void; openingDemo: boolean; demoError: string; hasUnreadableRecords: boolean;
 }) {
   const { width } = useWindowDimensions();
   const wide = width >= 850;
@@ -47,6 +47,7 @@ export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoErr
       <View style={[s.row, { justifyContent: 'space-between', borderBottomWidth: 1, borderColor: c.line, paddingBottom: 13 }]}>
         <Text accessibilityRole="header" style={s.subtitle}>Saved sessions</Text>{sessions.length > 0 && <Text accessibilityLabel={sessions.length + ' saved sessions'} style={[s.label, { fontVariant: ['tabular-nums'] }]}>{sessions.length}</Text>}
       </View>
+      {hasUnreadableRecords && <Copy alert>Some saved sessions or notes could not be read when opening this notebook.</Copy>}
       {!sessions.length && <View style={{ alignItems: 'center', gap: 6, paddingVertical: 18, backgroundColor: c.surface, borderRadius: 18 }}>
         <View style={{ backgroundColor: c.wash, borderRadius: 12, padding: 12 }}><Icon name="book" color={c.green} size={26} /></View>
         <Copy style={{ fontWeight: '700' }}>Your notebook is empty</Copy>

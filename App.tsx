@@ -29,6 +29,7 @@ export default function App() {
   const wide = useWindowDimensions().width >= 900;
   const [screen, setScreen] = useState<Screen>('Notebook');
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [hasUnreadableRecords, setHasUnreadableRecords] = useState(false);
   const { jobs, generate } = useNotes((id, notes) => setSessions(previous => previous.map(s => s.id === id ? { ...s, notes } : s)));
   const [current, setCurrent] = useState('');
   const demoLock = useRef(false);
@@ -42,7 +43,10 @@ export default function App() {
     setStatus('loading');
     try {
       const [saved, preference] = await Promise.all([loadSessions(), loadSize()]);
-      setSessions(saved); setSize(Object.values(captionSizes).includes(preference) ? preference : captionSizes.Large); setStatus('ready');
+      setSessions(saved.sessions);
+      setHasUnreadableRecords(saved.hasUnreadableRecords);
+      setSize(Object.values(captionSizes).includes(preference) ? preference : captionSizes.Large);
+      setStatus('ready');
     } catch { setStatus('error'); }
   }
   useEffect(() => { void load(); }, []);
@@ -88,7 +92,7 @@ export default function App() {
   const browserTab = Platform.OS === 'web' && status === 'ready' && mainTabs.find(tab => tab.name === screen);
   const content = status !== 'ready' ? <Page><Copy>{status === 'loading' ? 'Opening notebook…' : 'Your notebook could not be opened on this device.'}</Copy>
     {status === 'error' && <Action label="Try again" onPress={() => void load()} />}</Page> :
-    screen === 'Notebook' ? <Notebook sessions={sessions.filter(item => !item.demoId)} onNew={() => setScreen('Capture')} onOpen={openSession}
+    screen === 'Notebook' ? <Notebook sessions={sessions.filter(item => !item.demoId)} hasUnreadableRecords={hasUnreadableRecords} onNew={() => setScreen('Capture')} onOpen={openSession}
       onDemo={id => void openDemo(id)} openingDemo={openingDemo} demoError={demoError} /> :
     screen === 'Capture' ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); openSession(s); }} /> :
     screen === 'Detail' && session ? <Detail key={session.id} session={session} size={size} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
