@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EXPO_PUBLIC_AI_URL: http://127.0.0.1:8787
-      EXPO_PUBLIC_LIVE_NOTES: '1'
+      EXPO_PUBLIC_LIVE_NOTES: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,3 +21,9 @@ jobs:
       - run: npx expo export --platform all --max-workers 2
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
+      - name: Check the separately configured private pilot
+        env:
+          EXPO_PUBLIC_LIVE_NOTES: '1'
+        run: |
+          npx expo export --platform web --max-workers 2
+          npx playwright test --grep 'opens the draft reader|live drafts opt in'

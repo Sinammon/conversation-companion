@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { AccessibilityInfo, BackHandler, Linking, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Action, c, Choices, Copy, formatTime, Heading, Icon, Label, Page, s } from '../components/ui';
-import { livePilot } from '../ai/client';
 import { useLiveNotes } from '../ai/use-live-notes';
 import { LiveNotesPanel } from '../components/live-notes';
 import { useCapture } from '../capture/use-capture';
@@ -60,7 +59,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const capturing = cap.startedAt.current !== 0;
   const stopped = cap.phase === 'paused';
   const listening = cap.phase === 'listening';
-  const live = useLiveNotes(mode, listening, cap.readLiveTranscript);
+  const live = useLiveNotes(mode, listening, cap.readLiveTranscript, stopped ? cap.finalsAtStop.current : undefined);
   const busy = cap.phase === 'permission' || cap.phase === 'starting' || cap.phase === 'stopping';
   const hasCaptions = Boolean(cap.transcript.final.length || cap.transcript.partial);
   const canChoose = canChooseMicrophone();
@@ -162,7 +161,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     }
   }
   const status = ({ ready: 'Ready', permission: 'Checking permission…', starting: 'Opening microphone…', listening: 'Listening', stopping: 'Finishing captions…', paused: 'Microphone off' })[cap.phase];
-  const livePanel = livePilot && !discard && (!focus || live.state.status !== 'off') && <LiveNotesPanel
+  const livePanel = !discard && (!focus || live.state.status !== 'off') && <LiveNotesPanel
     notes={live} captions={cap.transcript.final} listening={listening} onStop={cap.stop}
     onStart={() => start(true)} disabled={!consent || busy || saving || loadingInputs || cap.needsMicrophoneChoice} />;
   return <View style={{ flex: 1 }}>

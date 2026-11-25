@@ -14,6 +14,7 @@ export function useCapture() {
   const [error, setError] = useState('');
   const words = useRef(empty());
   const [transcript, setTranscript] = useState(words.current);
+  const finalsAtStop = useRef(words.current.final);
   const startedAt = useRef(0);
   const [elapsed, setElapsed] = useState(0);
   const mounted = useRef(true);
@@ -32,6 +33,7 @@ export function useCapture() {
   function settle() {
     clearTimeout(timer.current);
     releaseMicrophone();
+    finalsAtStop.current = words.current.final;
     words.current = { final: finish(words.current), partial: null };
     if (mounted.current) {
       setTranscript(words.current);
@@ -170,5 +172,5 @@ export function useCapture() {
   }
   const readLiveTranscript = useCallback(() =>
     status.current === 'listening' && AppState.currentState !== 'background' ? words.current : null, []);
-  return { readLiveTranscript, audioTrack: microphone.current?.options.companionAudioTrack, phase, error, transcript, elapsed, startedAt, start, stop, inputInUse, needsMicrophoneChoice, acceptMicrophoneChoice };
+  return { finalsAtStop, readLiveTranscript, audioTrack: microphone.current?.options.companionAudioTrack, phase, error, transcript, elapsed, startedAt, start, stop, inputInUse, needsMicrophoneChoice, acceptMicrophoneChoice };
 }

@@ -1,5 +1,42 @@
 import { expect, test } from '@playwright/test';
 
+for (const duration of ['short session', 'full interval']) {
+test('student live notes save offline highlights · ' + duration, async ({page}) => {
+  test.skip(process.env.EXPO_PUBLIC_LIVE_NOTES === '1' && !!process.env.EXPO_PUBLIC_AI_URL, 'Use the student build.');
+  const requests: string[] = [];
+  page.on('request', request => { if (request.url().endsWith('/live-notes')) requests.push(request.url()); });
+  await page.addInitScript(() => {
+    class Fixture extends EventTarget {
+      start() {
+        this.dispatchEvent(new Event('start'));
+        const result = Object.assign([{transcript:'The workshop meets Friday.',confidence:1}],{isFinal:true});
+        this.dispatchEvent(Object.assign(new Event('result'),{resultIndex:0,results:[result]}));
+      }
+      stop() { this.dispatchEvent(new Event('end')); }
+      abort() { this.stop(); }
+    }
+    Object.defineProperty(window,'webkitSpeechRecognition',{value:Fixture,configurable:true});
+  });
+  await page.goto('/');
+  await page.getByRole('button',{name:'New session'}).click();
+  await page.getByRole('checkbox',{name:/Everyone agrees/}).check();
+  await page.getByRole('button',{name:'Live notes',exact:true}).click();
+  await page.clock.install();
+  await page.getByRole('button',{name:'Start with on-device highlights'}).click();
+  await expect(page.getByText('Listening',{exact:true})).toBeVisible();
+  if (duration === 'full interval') {
+    await page.clock.fastForward(45000);
+    await expect(page.getByText('• The workshop meets Friday.',{exact:true})).toBeVisible();
+  }
+  await page.getByRole('button',{name:'Stop microphone'}).click();
+  await page.getByRole('button',{name:'Save session'}).click();
+  await page.context().setOffline(true);
+  await page.getByRole('radio',{name:'Notes'}).click();
+  await expect(page.getByText('• The workshop meets Friday.',{exact:true})).toBeVisible();
+  expect(requests).toEqual([]);
+});
+}
+
 test('starting a fresh session with live notes opens the draft reader', async ({page}) => {
   test.skip(!process.env.EXPO_PUBLIC_AI_URL || process.env.EXPO_PUBLIC_LIVE_NOTES !== '1', 'Requires the private pilot build.');
   await page.addInitScript(() => {

@@ -1,5 +1,5 @@
 import type { Transcript } from '../capture/transcript';
-import type { DraftItem, LiveDraft } from '../types';
+import type { Caption, DraftItem, LiveDraft } from '../types';
 
 export type LiveState = { status: 'off' | 'waiting' | 'updating' | 'error'; error?: string };
 
@@ -20,6 +20,14 @@ export class LiveNotesRun {
   stop() {
     this.stopped = true;
     this.request?.abort();
+  }
+
+  finishLocal(captions: Caption[], extract: (text: string) => DraftItem[]) {
+    if (this.stopped) return;
+    this.stop();
+    if (this.cursor >= captions.length) return;
+    const items = extract(captions.slice(this.cursor).map(line => line.text).join('\n'));
+    if (items.length) this.save({start: this.cursor, end: captions.length, items});
   }
 
   retry() {

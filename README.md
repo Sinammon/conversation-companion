@@ -78,6 +78,12 @@ Open the service address with `/health` appended in Safari to check connectivity
 
 Open a saved session and choose **Notes → Allow sharing with Google Gemini → Generate notes**. In **Ask**, type a question and tap **Ask question**. Approving sharing does not send content until you request notes or an answer. **Lecture demo** and **Meeting demo** are available to try the same features without recording. The service checks excerpts against the transcript and can return an insufficient-evidence answer.
 
+### On-device live highlights
+
+From **New session**, check the transcription agreement, open **Live notes**, and choose **Start with on-device highlights**. During a running session, use **Show on-device highlights**. About every 45 seconds the app selects up to three sentences from new finalized captions. It uses word overlap, dates, and decision cues and keeps the speaker’s original wording. Highlight selection runs on your device without a server or API key. Your speech recognizer still follows the device’s audio-processing settings.
+
+Stopping the microphone also picks highlights from the remaining finalized speech, including recordings shorter than 45 seconds. Save the session to reopen the highlights in **Notes → Live drafts**. Each highlight shows its caption time. The on-device reader is the default for student use.
+
 ### Private live notes pilot
 
 Use a private setup with consenting adults and invented or non-sensitive speech. Keep the pilot off in student-facing or public deployments. The local service has no account-based access control. Use loopback on a laptop or a trusted private LAN with your phone. [Gemini API terms](https://ai.google.dev/gemini-api/terms)

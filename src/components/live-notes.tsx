@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { Caption, LiveDraft } from '../types';
 import type { useLiveNotes } from '../ai/use-live-notes';
-import { serviceUrl } from '../ai/client';
+import { livePilot, serviceUrl } from '../ai/client';
 import { Action, Copy, formatTime, Label, s } from './ui';
 
 export function DraftPassage({draft, captions}: {draft: LiveDraft; captions: Caption[]}) {
   const from = formatTime(captions[draft.start].at);
   const to = formatTime(captions[draft.end - 1].at);
   return <View style={s.group}>
-    <Label>{from === to ? 'At ' + from : from + ' – ' + to}</Label>
+    <Label>{from === to ? 'At ' + from : from + ' – ' + to}{draft.source === 'device' ? ' · On-device highlight' : ''}</Label>
     {draft.items.map((item, i) => <View key={i} style={{gap: 4}}>
-      <Copy>• {item.text}</Copy><Copy muted>“{item.quote}”</Copy>
+      <Copy>• {item.text}</Copy>{draft.source !== 'device' && <Copy muted>“{item.quote}”</Copy>}
     </View>)}
   </View>;
 }
@@ -27,7 +27,12 @@ export function LiveNotesPanel({notes, captions, listening, disabled, onStart, o
   return <View style={s.group}>
     <Action secondary icon="note" label={status === 'off' ? 'Live notes' : 'Live notes · On'} expanded={expanded} onPress={() => setExpanded(!expanded)} />
     {expanded && <View style={s.panel}>
-      {status === 'off' ? <>
+      {status === 'off' && !livePilot ? <>
+        <Label>On-device highlights</Label>
+        <Copy>About every 45 seconds, your device picks key sentences from new captions. These highlights stay in your notebook.</Copy>
+        <Action label={listening ? 'Show on-device highlights' : 'Start with on-device highlights'} disabled={disabled}
+          onPress={listening ? notes.enable : onStart} />
+      </> : status === 'off' ? <>
         <Label>Private adult pilot</Label>
         <Copy>Every 45 seconds, new finalized captions go to Google Gemini through {serviceUrl}. Use invented or non-sensitive speech. Google may use free-tier submissions to improve its products.</Copy>
         <Copy>Enable only if everyone is 18 or older and has agreed to share the conversation with Google.</Copy>
