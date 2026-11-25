@@ -1,15 +1,21 @@
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AppState, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import Animated, { cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-export function Lights() {
+export function Lights({ paused }: { paused: boolean }) {
   const { width } = useWindowDimensions();
+  const [foreground, setForeground] = useState(AppState.currentState === 'active' || AppState.currentState === null);
   const shift = useSharedValue(0);
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => setForeground(state === 'active'));
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (paused || !foreground) return;
     shift.set(withRepeat(withTiming(1, { duration: 21000, easing: Easing.inOut(Easing.sin) }), -1, true, undefined, ReduceMotion.System));
     return () => cancelAnimation(shift);
-  }, [shift]);
+  }, [foreground, paused, shift]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: width * .18 * shift.get() }] }));
   return <View pointerEvents="none" aria-hidden style={[StyleSheet.absoluteFill, { overflow: 'hidden', backgroundColor: '#203049' }]}>
     <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: -width * .25, right: -width * .25 }, style]}>

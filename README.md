@@ -17,11 +17,23 @@ npm ci
 | Target | First run |
 | --- | --- |
 | Android on Windows or Mac | Install Android Studio, the SDK, and a JDK using the [Expo environment guide](https://docs.expo.dev/get-started/set-up-your-environment/). Connect a USB-debugging phone or start an emulator with Google speech services. Run `npm run android -- --device`. |
+| iPhone with Expo Go from Windows or Mac | Use the free notebook preview below. |
 | iOS on Mac | Install Xcode, command-line tools and CocoaPods. Connect an iPhone, enable Developer Mode, and run `npm run ios -- --device`. Select your development signing team when prompted. |
 | iOS from Windows | Develop the shared TypeScript code locally. For a signed iPhone development build, use an Expo account and Apple device-signing credentials, then run `npx eas-cli@latest build:configure` and `npx eas-cli@latest build --platform ios --profile development`. Install the build on the registered device. [Expo development builds](https://docs.expo.dev/develop/development-builds/create-a-build/) |
 | Browser on Windows or Mac | Run `npm run web` and open the localhost link. Microphone support depends on the browser's Web Speech API and speech service. Chrome is suitable for trying the interface. Browser sessions use local storage. |
 
 For a standalone preview on an ARM64 Android phone, download the APK artifact from a successful [Build Android preview run](https://github.com/Sinammon/conversation-companion/actions/workflows/android-preview.yml), unzip it, and open the APK on your phone. This preview uses Expo's generated development signing key and bundles the JavaScript so Metro is unnecessary. A maintainer can run the workflow with a notes-service URL to enable AI for that build. The URL becomes public. Store releases require your own signing credentials.
+
+### Free iPhone preview in Expo Go
+
+1. Install or update Expo Go on your iPhone. Use a release that supports Expo SDK 58. [Expo Go on the App Store](https://apps.apple.com/ca/app/expo-go/id982107779)
+2. Run `npx expo login` on your laptop and sign into the same free Expo account in Expo Go. Check the terminal account with `npx expo whoami`.
+3. Put the laptop and iPhone on the same Wi-Fi. Run `npm run preview:iphone` and scan that terminal's QR code with the iPhone Camera. If Expo web already uses port 8081, run `npm run preview:iphone -- --port 8082`.
+4. Open a lecture or meeting sample to read a transcript. In Preferences, try a different caption size and reopen the sample. Expo Go keeps its own local notebook. Use the development build for live captions and microphone selection.
+
+If Expo Go can't load the QR, check the SDK version, account, and Wi-Fi. Allow Expo Go to access the local network in iPhone Settings and allow Node.js through the laptop firewall on the trusted network. The preview QR opens Expo Go. For Safari, open the HTTP URL printed by `npm run web -- --lan`.
+
+For Gemini notes and questions, run the notes server separately. Set `EXPO_PUBLIC_AI_URL` to its reachable address before starting Metro and confirm `/health` opens on the phone. Approve sharing on the sample before generating notes or asking a question. If the Expo Go host can't reach the local HTTP service, use the Safari preview for that check or an existing HTTPS notes endpoint. [Expo Go sign-in requirements](https://docs.expo.dev/troubleshooting/expo-go-sign-in-required/)
 
 After installing a development build, run `npm start` and open its Metro link. Rebuild after changing a native plugin, app permission, or Android HTTP transport setting. The speech module requires a development build on phones. Expo Go lacks that module.
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
-import { ExpoSpeechRecognitionModule as speech, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { speech } from './speech';
+import { useSpeechRecognitionEvent } from './use-speech-event';
 import { empty, finish, onWords } from './transcript';
 import { activeMicrophone, prepareMicrophone } from './microphone';
 import type { MicrophoneInput, PreparedMicrophone } from './microphone-types';
@@ -51,10 +52,10 @@ export function useCapture() {
     change('stopping');
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      speech.abort();
+      speech?.abort();
       settle();
     }, 2500);
-    try { speech.stop(); } catch { speech.abort(); settle(); }
+    try { speech?.stop(); } catch { speech?.abort(); settle(); }
   }
   useSpeechRecognitionEvent('start', () => {
     if (status.current === 'starting') {
@@ -94,7 +95,7 @@ export function useCapture() {
       attempt.current++;
       subscription.remove();
       clearTimeout(timer.current);
-      if (['starting', 'listening', 'stopping'].includes(status.current)) speech.abort();
+      if (['starting', 'listening', 'stopping'].includes(status.current)) speech?.abort();
       releaseMicrophone();
     };
   }, []);
@@ -115,7 +116,7 @@ export function useCapture() {
     setError('');
     change('permission');
     try {
-      if (!speech.isRecognitionAvailable()) {
+      if (!speech?.isRecognitionAvailable()) {
         throw new Error(Platform.OS === 'web'
           ? 'This browser does not expose speech recognition. On iPhone, turn on Siri in Settings, open this page directly in Safari, and reload. On a computer, try Chrome.'
           : 'Speech recognition is unavailable. Enable a speech service on this device, or try another device.');
@@ -139,7 +140,7 @@ export function useCapture() {
       if (!startedAt.current) startedAt.current = Date.now();
       change('starting');
       timer.current = setTimeout(() => {
-        speech.abort();
+        speech?.abort();
         setError('The microphone did not start. Check permissions and try again.');
         settle();
       }, 12000);

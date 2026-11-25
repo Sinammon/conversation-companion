@@ -11,3 +11,9 @@ Use a phone with a working speech recognizer and an invented conversation. Recor
 7. Delete a saved session. Reopen the app and confirm it is gone.
 8. On iOS 26, switch between Notebook and Preferences. Check that the dock uses Liquid Glass, then enable Reduce Transparency and look for a solid dock. Enable Reduce Motion and confirm the dock and recording meter stay still. In a regular capture, speak at different volumes and check that the meter responds while the caption text remains stable.
 9. On desktop Chrome at localhost and on a rebuilt iPhone, connect an external microphone and select it before capture. Confirm the displayed input and speak close to each mic to check which produces captions. Unplug the selected mic, verify recording pauses with the caption text intact, then choose System default and resume. Deny microphone permission once and verify the error guides you back to permissions. On Safari and Android, check capture through the system microphone.
+
+## Expo Go on iPhone
+
+1. Run `npm run preview:iphone`, then scan the QR with an iPhone signed in to the same Expo account. On a fresh launch, confirm the notebook renders and explains that live captions require a development build. Opening the notebook and samples should trigger no microphone prompt.
+2. Open both samples, switch the caption size, force-quit Expo Go, and reopen. Confirm the saved preference and any generated sample notes are still available. With the notes server reachable, open Ask and submit a question.
+3. Repeat in portrait and landscape, with the largest accessibility text size, VoiceOver, and Reduce Motion. Check the home indicator, tab targets, sample cards, and keyboard. In a development build, check that a longer live transcript follows to the latest caption and leaves the previous position alone when auto-scroll is paused.

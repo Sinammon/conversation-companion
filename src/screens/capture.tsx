@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AccessibilityInfo, BackHandler, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, BackHandler, Linking, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Action, c, Choices, Copy, formatTime, Heading, Icon, Label, Page, s } from '../components/ui';
 import { useCapture } from '../capture/use-capture';
 import { canChooseMicrophone, listMicrophones } from '../capture/microphone';
@@ -9,6 +9,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { CaptionSizeControl } from '../components/caption-size';
 import type { CaptionSize } from '../components/caption-size';
 import { Orb } from '../components/orb';
+import { CaptionFeed } from '../components/caption-feed';
 import { RecordingMeter } from '../components/recording-meter';
 import type { Mode, Session } from '../types';
 
@@ -30,6 +31,8 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   sizeError: string; onSizeChange: (size: CaptionSize) => void;
 }) {
   const cap = useCapture();
+  const { height, fontScale } = useWindowDimensions();
+  const compact = height < 480 || fontScale >= 1.35;
   const [consent, setConsent] = useState(false);
   const [mode, setMode] = useState<Mode>('Lecture');
   const [title, setTitle] = useState('');
@@ -45,13 +48,12 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const [inputError, setInputError] = useState('');
   const discovery = useRef<AbortController | null>(null);
   React.useEffect(() => () => discovery.current?.abort(), []);
-  const list = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const lock = useRef(false);
   const capturing = cap.startedAt.current !== 0;
   const stopped = cap.phase === 'paused';
   const listening = cap.phase === 'listening';
   const busy = cap.phase === 'permission' || cap.phase === 'starting' || cap.phase === 'stopping';
-  const captions = finish(cap.transcript);
+  const hasCaptions = Boolean(cap.transcript.final.length || cap.transcript.partial);
   const canChoose = canChooseMicrophone();
   async function toggleInputs() {
     if (showInputs) {
@@ -136,13 +138,13 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     }
   }, [cap.phase]);
   async function save() {
-    if (!stopped || !captions.length || lock.current) return;
+    if (!stopped || !hasCaptions || lock.current) return;
     lock.current = true;
     setSaving(true);
     setSaveError('');
     const date = cap.startedAt.current;
     try {
-      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI: false, captions,
+      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI: false, captions: finish(cap.transcript),
         title: title.trim() || mode + ' · ' + new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
     } catch {
       setSaveError('Could not save on this device. Your captions are still here. Try saving again.');
@@ -169,35 +171,32 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
       {!!cap.error && Platform.OS !== 'web' && <Action secondary label="Open device settings" onPress={() => { void Linking.openSettings().catch(() => {}); }} />}
       <Action recording label={busy ? status : 'Start live captions'} icon="mic"
         disabled={!consent || busy || loadingInputs || cap.needsMicrophoneChoice} onPress={start} />
-    </Page> : <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 720, padding: 18, gap: 11 }}>
-      <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}>
-        <Action label="Leave session" secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} />
-        <Action label="Caption size" secondary icon="tune" expanded={showSize} onPress={() => setShowSize(!showSize)} />
-      </View>
-      <View style={[s.row, { justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, flexWrap: 'wrap',
-        backgroundColor: listening ? c.recordWash : c.wash }]}>
-        <View style={{ flexShrink: 1 }}>
-          <Label>{mode} · <Text style={{ fontVariant: ['tabular-nums'] }}>{formatTime(cap.elapsed)}</Text></Label>
-          <Text accessibilityLiveRegion="polite" style={[s.label, { color: listening ? c.record : c.ink }]}>{status}</Text>
-          {listening && <Label>Microphone in use: {cap.inputInUse}</Label>}
+    </Page> : <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 720, padding: compact ? 10 : 18, gap: compact ? 6 : 11 }}>
+      <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '42%' : undefined }} contentContainerStyle={{ gap: compact ? 6 : 11 }} keyboardShouldPersistTaps="handled">
+        <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}>
+          <Action label="Leave session" secondary icon="back" onPress={back} disabled={saving || cap.phase === 'permission'} />
+          <Action label="Caption size" secondary icon="tune" expanded={showSize} onPress={() => setShowSize(!showSize)} />
         </View>
-        <View style={s.row}><RecordingMeter listening={listening} /><Orb size={56} listening={listening} track={cap.audioTrack} /></View>
-      </View>
-      <Text accessibilityRole="header" style={s.subtitle}>Live captions</Text>
-      {showSize && <View style={{ gap: 5 }}><CaptionSizeControl size={size} onChange={onSizeChange} />{!!sizeError && <Copy alert>{sizeError}</Copy>}</View>}
-      <ScrollView ref={list} style={{ flex: 1, minHeight: 64, backgroundColor: c.reader, borderRadius: 16, borderWidth: 1, borderColor: c.line }} contentContainerStyle={{ padding: 16, gap: 14 }}
-        onContentSizeChange={() => { if (follow) list.current?.scrollToEnd({ animated: false }); }}>
-        {!captions.length && <Copy muted>{stopped ? 'No speech captured yet.' : 'Captions will appear when someone speaks.'}</Copy>}
-        {cap.transcript.final.map((line, i) => <Text selectable key={i} style={{ fontSize: size, lineHeight: size * 1.45, color: c.ink }}>{line.text}</Text>)}
-        {cap.transcript.partial && <Text selectable style={{ fontSize: size, lineHeight: size * 1.45, color: c.muted }}>{cap.transcript.partial.text}</Text>}
+        <View style={[s.row, { justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, flexWrap: 'wrap',
+          backgroundColor: listening ? c.recordWash : c.wash }]}>
+          <View style={{ flexShrink: 1 }}>
+            <Label>{mode} · <Text style={{ fontVariant: ['tabular-nums'] }}>{formatTime(cap.elapsed)}</Text></Label>
+            <Text accessibilityLiveRegion="polite" style={[s.label, { color: listening ? c.record : c.ink }]}>{status}</Text>
+            {listening && <Label>Microphone in use: {cap.inputInUse}</Label>}
+          </View>
+          {!compact && <View style={s.row}><RecordingMeter listening={listening} /><Orb size={56} listening={listening} track={cap.audioTrack} /></View>}
+        </View>
+        <Text accessibilityRole="header" style={s.subtitle}>Live captions</Text>
+        {showSize && <View style={{ gap: 5 }}><CaptionSizeControl size={size} onChange={onSizeChange} />{!!sizeError && <Copy alert>{sizeError}</Copy>}</View>}
       </ScrollView>
+      <CaptionFeed transcript={cap.transcript} size={size} follow={follow} stopped={stopped} />
       {Platform.OS === 'android' && <Text accessibilityLiveRegion="polite" style={{ height: 1, overflow: 'hidden' }}>{cap.transcript.final.at(-1)?.text}</Text>}
-      <ScrollView style={{ flexGrow: 0, maxHeight: '50%' }} contentContainerStyle={{ gap: 8 }}>
+      <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '34%' : '50%' }} contentContainerStyle={{ gap: 8 }}>
         {!!(cap.error || saveError) && <Copy alert>{saveError || cap.error}</Copy>}
         {discard ? <View style={s.group}><Copy>Leave without saving these captions?</Copy><Action label="Keep session" onPress={() => setDiscard(false)} /><Action secondary label="Discard and leave" onPress={onExit} /></View>
-          : stopped ? <>{microphones}<Action label={saving ? 'Saving…' : 'Save session'} disabled={!captions.length || saving} icon="book" onPress={() => void save()} />
+          : stopped ? <>{microphones}<Action label={saving ? 'Saving…' : 'Save session'} disabled={!hasCaptions || saving} icon="book" onPress={() => void save()} />
             <Action secondary label="Resume captions" icon="mic" disabled={saving || loadingInputs || cap.needsMicrophoneChoice} onPress={start} /></>
-          : <><Action secondary label={follow ? 'Pause auto-scroll' : 'Follow live captions'} onPress={() => { setFollow(!follow); if (!follow) list.current?.scrollToEnd(); }} />
+          : <><Action secondary label={follow ? 'Pause auto-scroll' : 'Follow live captions'} onPress={() => setFollow(!follow)} />
             <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} /></>}
       </ScrollView>
     </View>}

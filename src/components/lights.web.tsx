@@ -1,2 +1,4 @@
 import './glass.css';
-export function Lights() { return <div aria-hidden className="cc-lights" />; }
+export function Lights({ paused }: { paused: boolean }) {
+  return <div aria-hidden className="cc-lights" data-paused={paused} />;
+}

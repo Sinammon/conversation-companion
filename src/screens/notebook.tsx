@@ -7,26 +7,28 @@ import { Action, c, Copy, formatTime, Heading, Icon, Page, s, bold } from '../co
 import { Orb } from '../components/orb';
 import { Ribbons } from '../components/ribbons';
 
-export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoError, hasUnreadableRecords }: {
+export function Notebook({ sessions, onNew, onOpen, onDemo, openingDemo, demoError, hasUnreadableRecords, previewMessage }: {
   sessions: Session[]; onNew: () => void; onOpen: (s: Session) => void;
-  onDemo: (id: DemoId) => void; openingDemo: boolean; demoError: string; hasUnreadableRecords: boolean;
+  onDemo: (id: DemoId) => void; openingDemo: boolean; demoError: string; hasUnreadableRecords: boolean; previewMessage: string;
 }) {
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const wide = width >= 850;
+  const singleColumn = width / fontScale < 350;
+  const showOrb = fontScale < 1.35;
   const inset = wide ? 36 : 20;
   return <Page>
     <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}><Heading>My notebook</Heading>
       <Copy muted style={{ fontSize: 13 }}>{new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' })}</Copy></View>
     <View dataSet={{ hero: true }} style={[s.panel, { padding: inset, borderRadius: 28, backgroundColor: '#303D60', overflow: 'hidden', justifyContent: 'center', minHeight: wide ? 276 : 235 }]}>
       <Ribbons color="#A3BBFF" />
-      <View style={{ position: 'absolute', right: wide ? '5%' : -4, top: wide ? 4 : 5 }}><Orb size={wide ? 242 : width < 360 ? 100 : 132} /></View>
-      <Text accessibilityRole="header" style={{ color: c.ink, fontFamily: bold, fontSize: wide ? 46 : 31, lineHeight: wide ? 50 : 35, letterSpacing: -1.3, maxWidth: wide ? '61%' : '68%' }}>Capture a conversation</Text>
-      <Copy style={{ color: '#D2DCF0', maxWidth: wide ? 315 : '72%' }}>Read live captions and save the transcript for later.</Copy>
-      <View style={{ alignSelf: 'flex-start', marginTop: 8 }}><Action recording label="New session" icon="mic" onPress={onNew} /></View>
+      {showOrb && <View style={{ position: 'absolute', right: wide ? '5%' : -4, top: wide ? 4 : 5 }}><Orb size={wide ? 242 : width < 360 ? 100 : 132} /></View>}
+      <Text accessibilityRole="header" style={{ color: c.ink, fontFamily: bold, fontSize: wide ? 46 : 31, lineHeight: wide ? 50 : 35, letterSpacing: -1.3, maxWidth: !showOrb ? '100%' : wide ? '61%' : '68%' }}>{previewMessage ? 'Preview your notebook' : 'Capture a conversation'}</Text>
+      <Copy style={{ color: '#D2DCF0', maxWidth: !showOrb ? '100%' : wide ? 315 : '72%' }}>{previewMessage || 'Read live captions and save the transcript for later.'}</Copy>
+      {!previewMessage && <View style={{ alignSelf: 'flex-start', marginTop: 8 }}><Action recording label="New session" icon="mic" onPress={onNew} /></View>}
     </View>
     <View style={{ gap: 12 }}>
       <Text accessibilityRole="header" style={s.subtitle}>Try Gemini notes</Text>
-      <View style={{ flexDirection: width < 350 ? 'column' : 'row', gap: 12 }}>
+      <View style={{ flexDirection: singleColumn ? 'column' : 'row', gap: 12 }}>
         {demoIds.map(id => {
           const lecture = id === 'lecture';
           const tint = lecture ? '#9AF1DE' : '#DFCBFF';

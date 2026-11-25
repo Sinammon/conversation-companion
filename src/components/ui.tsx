@@ -52,7 +52,7 @@ export function Choices<T extends string>({ values, selected, onChange }: { valu
     <Text style={[s.choiceText, value === selected && { color: c.reader }]}>{value}</Text></Pressable>)}</View>;
 }
 export function Page({ children, extra }: { children: React.ReactNode; extra?: ViewStyle }) {
-  return <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={[s.page, extra]}>{children}</ScrollView>;
+  return <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'} contentInsetAdjustmentBehavior="never" contentContainerStyle={[s.page, extra]}>{children}</ScrollView>;
 }
 export function formatTime(ms: number) {
   const sec = Math.floor(ms / 1000);
@@ -68,7 +68,7 @@ export const s = StyleSheet.create({
   actionText: { fontFamily: bold, fontSize: 16, fontWeight: '700', flexShrink: 1 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: c.wash, padding: 4, borderRadius: 9, gap: 2 },
   choice: { flexGrow: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9, paddingVertical: 9, borderRadius: 6 },
-  choiceText: { fontSize: 15, color: c.muted, fontWeight: '600' }, activeChoice: { backgroundColor: c.green },
+  choiceText: { textAlign: 'center', fontSize: 15, color: c.muted, fontWeight: '600' }, activeChoice: { backgroundColor: c.green },
   input: { borderWidth: 1, borderColor: c.line, borderRadius: 8, padding: 14, color: c.ink, backgroundColor: c.reader, minHeight: 50, fontSize: 17 },
   group: { gap: 12 }, panel: { backgroundColor: c.surface, borderColor: c.line, borderWidth: 1, borderRadius: 20, padding: 20, gap: 12 }, row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

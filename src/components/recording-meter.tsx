@@ -1,5 +1,5 @@
 import { Platform, StyleSheet, View } from 'react-native';
-import { useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { useSpeechRecognitionEvent } from '../capture/use-speech-event';
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { normalizeRecordingLevel } from '../capture/recording-level';
