@@ -37,6 +37,22 @@ async function open(t, options = {}) {
   return { calls, post, url };
 }
 
+test('pilot needs the server switch and explicit live consent, and returns batch-grounded drafts', async t => {
+  const disabled = await open(t);
+  assert.equal((await disabled.post({liveConsent:true}, phoneOrigin, '/live-notes')).status, 404);
+  const items = [{text:'Meet Thursday.', quote}];
+  const pilot = await open(t, {liveNotesEnabled:true, fetchModel:() => modelReply(JSON.stringify({items}))});
+  assert.equal((await pilot.post({}, phoneOrigin, '/live-notes')).status, 409);
+  assert.equal(pilot.calls.length, 0);
+  const post = () => pilot.post({liveConsent:true}, phoneOrigin, '/live-notes');
+  const response = await post();
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {items});
+  items[0].quote = 'Made up';
+  assert.equal((await post()).status, 502);
+  assert.equal(disabled.calls.length, 0);
+});
+
 test('both configured browser origins can preflight and ask Gemini for a cited answer', async t => {
   const { calls, post, url } = await open(t);
   for (const origin of [desktopOrigin, phoneOrigin]) {

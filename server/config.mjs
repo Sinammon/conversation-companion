@@ -7,6 +7,7 @@ export function readNotesConfig(env) {
   }
   return {
     host, port,
+    liveNotesEnabled: env.LIVE_NOTES_ENABLED === '1',
     origins: (env.WEB_ORIGINS || env.WEB_ORIGIN || 'http://localhost:8081')
       .split(',').map(origin => origin.trim()).filter(Boolean),
     key: env.GEMINI_API_KEY?.trim(),

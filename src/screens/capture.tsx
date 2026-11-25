@@ -1,6 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { AccessibilityInfo, BackHandler, Linking, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Action, c, Choices, Copy, formatTime, Heading, Icon, Label, Page, s } from '../components/ui';
+import { livePilot } from '../ai/client';
+import { useLiveNotes } from '../ai/use-live-notes';
+import { LiveNotesPanel } from '../components/live-notes';
 import { useCapture } from '../capture/use-capture';
 import { canChooseMicrophone, listMicrophones } from '../capture/microphone';
 import type { MicrophoneInput } from '../capture/microphone-types';
@@ -57,6 +60,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
   const capturing = cap.startedAt.current !== 0;
   const stopped = cap.phase === 'paused';
   const listening = cap.phase === 'listening';
+  const live = useLiveNotes(mode, listening, cap.readLiveTranscript);
   const busy = cap.phase === 'permission' || cap.phase === 'starting' || cap.phase === 'stopping';
   const hasCaptions = Boolean(cap.transcript.final.length || cap.transcript.partial);
   const canChoose = canChooseMicrophone();
@@ -149,7 +153,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     setSaveError('');
     const date = cap.startedAt.current;
     try {
-      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI: false, bookmarks, captions: finish(cap.transcript),
+      await onSave({ id: String(date), startedAt: date, durationMs: cap.elapsed, mode, allowAI: false, bookmarks, liveDrafts: live.drafts, captions: finish(cap.transcript),
         title: title.trim() || mode + ' · ' + new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
     } catch {
       setSaveError('Could not save on this device. Your captions are still here. Try saving again.');
@@ -197,8 +201,10 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
       </ScrollView>
       <CaptionFeed transcript={cap.transcript} size={size} follow={follow} stopped={stopped} />
       {Platform.OS === 'android' && <Text accessibilityLiveRegion="polite" style={{ height: 1, overflow: 'hidden' }}>{cap.transcript.final.at(-1)?.text}</Text>}
-      <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '34%' : '50%' }} contentContainerStyle={{ gap: 8 }}>
+      <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '30%' : '40%' }} contentContainerStyle={{ gap: 8 }}>
         {!!(cap.error || saveError) && <Copy alert>{saveError || cap.error}</Copy>}
+        {livePilot && listening && !discard && (!focus || live.state.status !== 'off') &&
+          <LiveNotesPanel notes={live} captions={cap.transcript.final} />}
         {!discard && (!follow || !stopped) && <Action secondary icon={follow ? 'pause' : 'arrow'}
           label={follow ? 'Pause auto-scroll' : stopped ? 'Go to latest caption' : unread ? `Back to live · ${unread} new caption${unread === 1 ? '' : 's'}` : 'Back to live'}
           onPress={() => setPausedAt(follow ? cap.transcript.final.length : null)} />}
@@ -207,8 +213,9 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         {discard ? <View style={s.group}><Copy>Leave without saving these captions?</Copy><Action label="Keep session" onPress={() => setDiscard(false)} /><Action secondary label="Discard and leave" onPress={onExit} /></View>
           : stopped ? <>{microphones}<Action label={saving ? 'Saving…' : 'Save session'} disabled={!hasCaptions || saving} icon="book" onPress={() => void save()} />
             <Action secondary label="Resume captions" icon="mic" disabled={saving || loadingInputs || cap.needsMicrophoneChoice} onPress={start} /></>
-          : <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} />}
+          : null}
       </ScrollView>
+      {!stopped && !discard && <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} />}
     </View>}
   </View>;
 }

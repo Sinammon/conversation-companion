@@ -11,6 +11,7 @@ Install **Node.js 24 LTS** (24.3 or newer), Git, and the native tools for your t
 ```sh
 git clone https://github.com/Sinammon/conversation-companion.git
 cd conversation-companion
+git switch codex/caption-tools
 npm ci
 ```
 
@@ -48,6 +49,8 @@ For an existing generated Android project, run `npx expo prebuild --platform and
 3. Read the interim text as it settles into the transcript. **Pause auto-scroll** lets you read an earlier passage. If recognition stops, the app shows **Microphone off** and offers **Resume captions**.
 4. Use **Caption size** in the live reader or **Preferences** to adjust live and saved captions. Tap **Stop microphone**, then **Save session**. Reopen it from **My notebook**.
 
+Use **Focus captions** to give the transcript more screen space. **Back to live** shows how many captions arrived while scrolling was paused. **Bookmark latest caption** marks the most recent finalized line. Reopen a bookmark in **Transcript** to read the surrounding passage. The search field above saved sessions finds titles and spoken words on this device.
+
 **Choose microphone** appears in desktop Chrome 135+ on localhost or HTTPS, and in a rebuilt native iPhone app. Allow microphone access to list inputs before starting, or change the input after stopping and before resuming. If a selected mic disconnects, your current captions stay available and you can select a new input or **System default**. iPhone Safari, Android, and the plain-HTTP Wi-Fi URL follow the system microphone.
 
 Rebuild the iOS development client to add the mic picker. The pinned Expo speech-recognition package is patched automatically by `npm ci`. Desktop Chrome can use the picker after reloading the Expo web app at `http://localhost:8081`.
@@ -74,6 +77,18 @@ If `npm run server` reports `EADDRINUSE`, open `/health` at the address it print
 Open the service address with `/health` appended in Safari to check connectivity. `missing-key` means the running server could not load a key. `ready` means the key is configured. Generate demo notes to verify that Google accepts it. For a browser running on another origin, add its exact scheme, host and port to `WEB_ORIGINS` and restart the server.
 
 Open a saved session and choose **Notes → Allow sharing with Google Gemini → Generate notes**. In **Ask**, type a question and tap **Ask question**. Approving sharing does not send content until you request notes or an answer. **Lecture demo** and **Meeting demo** are available to try the same features without recording. The service checks excerpts against the transcript and can return an insufficient-evidence answer.
+
+### Private live notes pilot
+
+Use a private setup with consenting adults and invented or non-sensitive speech. Keep the pilot off in student-facing or public deployments. The local service has no account-based access control. Use loopback on a laptop or a trusted private LAN with your phone. [Gemini API terms](https://ai.google.dev/gemini-api/terms)
+
+1. Configure the notes service above. In the project root's private `.env`, set `LIVE_NOTES_ENABLED=1` and `EXPO_PUBLIC_LIVE_NOTES=1`. Restart the server and Expo. The health response should include `"liveNotesEnabled": true`.
+2. Start live captions in a supported browser or a native development build. Open **Live notes**, read the sharing notice, and confirm participant agreement. An utterance already in progress at opt-in is excluded.
+3. Speak for a few sentences and pause. About every 45 seconds, the app sends new finalized captions through the configured server. Silence uses no requests. Continuous speech can use about 80 requests per hour. Check the [project quota](https://ai.google.dev/gemini-api/docs/rate-limits) before a long session.
+4. Each draft shows its time range and supporting excerpts. **Turn off live notes**, stopping the microphone, or backgrounding the app cancels pending work. Resume requires a fresh opt-in. On an error, **Retry live notes** retries the failed passage.
+5. Tap **Save session**, then **Notes → Live drafts** to read successful updates offline. A final whole-session summary uses the separate **Generate notes** action and sharing approval.
+
+The previous version is tagged `checkpoint/before-caption-tools`. To try it alongside this checkout, run `git worktree add --detach ../companion-before-caption-tools checkpoint/before-caption-tools` and run `npm ci` in that folder. To access the same web notebook, open the same browser, scheme, host and port.
 
 ## Data and device behavior
 

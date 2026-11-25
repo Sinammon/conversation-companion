@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { Action, c, Choices, Copy, formatTime, Heading, Label, Page, s } from '../components/ui';
+import { DraftPassage } from '../components/live-notes';
 import { TranscriptReview } from '../components/transcript-review';
 import { ask, serviceUrl } from '../ai/client';
 import { isApproved } from '../ai/consent';
@@ -70,6 +71,11 @@ export function Detail({ session, initialQuery, size, job, generate, onBookmarks
           <Action label="Allow sharing with Google Gemini" disabled={!!busy} onPress={() => void run('Saving…', () =>
             onUpdate({ ...session, allowAI: true, approvedUrl: serviceUrl, approvedProvider: 'gemini' }))} />
         </>}
+    </View>}
+    {tab === 'Notes' && !!session.liveDrafts?.length && <View style={s.panel}>
+      <Text accessibilityRole="header" style={s.subtitle}>Live drafts</Text>
+      <Copy muted>Written during the conversation. Later captions may correct an earlier point.</Copy>
+      {session.liveDrafts.map(draft => <DraftPassage key={draft.start} draft={draft} captions={session.captions} />)}
     </View>}
     {tab === 'Notes' && session.notes && <>
       <View style={s.panel}><Text accessibilityRole="header" style={s.subtitle}>Summary</Text><Copy>{session.notes.summary}</Copy></View>

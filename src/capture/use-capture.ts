@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { speech } from './speech';
 import { useSpeechRecognitionEvent } from './use-speech-event';
@@ -164,5 +164,7 @@ export function useCapture() {
     setNeedsMicrophoneChoice(false);
     if (needsMicrophoneChoice) setError('');
   }
-  return { audioTrack: microphone.current?.options.companionAudioTrack, phase, error, transcript, elapsed, startedAt, start, stop, inputInUse, needsMicrophoneChoice, acceptMicrophoneChoice };
+  const readLiveTranscript = useCallback(() =>
+    status.current === 'listening' && AppState.currentState !== 'background' ? words.current : null, []);
+  return { readLiveTranscript, audioTrack: microphone.current?.options.companionAudioTrack, phase, error, transcript, elapsed, startedAt, start, stop, inputInUse, needsMicrophoneChoice, acceptMicrophoneChoice };
 }

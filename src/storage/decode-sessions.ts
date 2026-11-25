@@ -1,3 +1,4 @@
+import { readDrafts } from '../ai/live-draft';
 import { cleanBookmarks } from '../capture/bookmarks';
 import type { Caption, Session } from '../types';
 import { isNotes, isRecord } from '../ai/response';
@@ -33,6 +34,7 @@ function decodeSession(raw: string, id: string): { session?: Session; unreadable
     approvedUrl: typeof data.approvedUrl === 'string' ? data.approvedUrl : undefined,
     approvedProvider: data.approvedProvider === 'gemini' ? 'gemini' : undefined,
     demoId: data.demoId === 'lecture' || data.demoId === 'meeting' ? data.demoId : undefined,
+    liveDrafts: readDrafts(data.liveDrafts, data.captions),
     bookmarks: cleanBookmarks(data.bookmarks, data.captions.length),
     notes,
   };

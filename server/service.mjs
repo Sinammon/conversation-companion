@@ -18,7 +18,7 @@ async function readBody(request) {
   catch { throw new InputError('Expected a JSON request.'); }
 }
 
-export function createNotesServer({ key = '', model, origins, fetchModel, timeoutMs }) {
+export function createNotesServer({ key = '', model, origins, liveNotesEnabled = false, fetchModel, timeoutMs }) {
   const allowedOrigins = new Set(origins);
   const generate = createGenerator({ key, model, fetchModel, timeoutMs });
   let active = 0;
@@ -39,9 +39,10 @@ export function createNotesServer({ key = '', model, origins, fetchModel, timeou
       return send(200, {});
     }
     if (req.method === 'GET' && req.url === '/health') {
-      return send(200, { status: key ? 'ready' : 'missing-key', provider: 'gemini', model });
+      return send(200, { status: key ? 'ready' : 'missing-key', provider: 'gemini', model, liveNotesEnabled });
     }
-    const task = req.url === '/notes' ? 'notes' : req.url === '/ask' ? 'ask' : null;
+    const task = req.url === '/notes' ? 'notes' : req.url === '/ask' ? 'ask' :
+      liveNotesEnabled && req.url === '/live-notes' ? 'live-notes' : null;
     if (!task || req.method !== 'POST') return send(404, { error: 'Unknown endpoint.' });
     if (Number(req.headers['content-length']) > maxBodyBytes) {
       req.resume();
@@ -56,6 +57,9 @@ export function createNotesServer({ key = '', model, origins, fetchModel, timeou
       const body = await readBody(req);
       if (body?.approvedProvider !== 'gemini') {
         return send(409, { error: 'Approve sharing this session with Google Gemini before trying again.' });
+      }
+      if (task === 'live-notes' && body.liveConsent !== true) {
+        return send(409, { error: 'Confirm participant agreement before enabling live notes.' });
       }
       send(200, await assist(task, body, (system, data, format) => generate(system, data, format, controller.signal)));
     } catch (error) {

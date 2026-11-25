@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { LiveNotesRun } from '../src/ai/live-notes-run';
+import type { LiveDraft } from '../src/types';
+import { empty, onWords } from '../src/capture/transcript';
+
+test('only sends new finals after consent, pins the failed range for retry and ignores cancelled replies', async () => {
+  let transcript = onWords(empty(), 'Before consent.', true, 0);
+  transcript = onWords(transcript, 'Already speaking', false, 1);
+  const sent: string[] = [];
+  const drafts: LiveDraft[] = [];
+  let attempt = 0;
+  let release!: () => void;
+  let signal!: AbortSignal;
+  const run = new LiveNotesRun(transcript, () => transcript, async (text, abort) => {
+    sent.push(text);
+    signal = abort;
+    if (++attempt === 1) throw new Error('Quota exceeded');
+    if (attempt === 3) await new Promise<void>(resolve => { release = resolve; });
+    return [{ text: 'Draft', quote: text }];
+  }, () => {}, draft => drafts.push(draft));
+  await run.tick();
+  transcript = onWords(transcript, 'Already speaking at opt-in.', true, 2);
+  await run.tick();
+  assert.equal(sent.length, 0);
+  transcript = onWords(transcript, 'New information.', true, 3);
+  await run.tick();
+  transcript = onWords(transcript, 'Another line.', true, 4);
+  await run.tick();
+  assert.deepEqual(sent, ['New information.']);
+  await run.retry();
+  assert.equal(drafts.length, 1);
+  assert.deepEqual([drafts[0].start, drafts[0].end], [2,3]);
+  const delayed = run.tick();
+  await run.tick();
+  assert.deepEqual(sent, ['New information.', 'New information.', 'Another line.']);
+  run.stop();
+  assert.equal(signal.aborted, true);
+  release();
+  await delayed;
+  assert.equal(drafts.length, 1);
+});

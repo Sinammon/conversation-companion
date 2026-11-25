@@ -27,6 +27,15 @@ export async function assist(task, input, generate) {
       ? { answer: result.answer.trim(), quote: result.quote.trim() }
       : unsupported;
   }
+  if (task === 'live-notes') {
+    const format = object({ items: { type: 'array', maxItems: 3, items: object({ text: string, quote: string }) } });
+    const result = await generate(rules + ' Summarize this new ' + mode + ' passage in up to three short bullets. Give an exact supporting quote for each. Return an empty list for filler or silence.', { transcript }, format);
+    if (!Array.isArray(result?.items) || result.items.length > 3 ||
+      result.items.some(item => !hasText(item?.text) || !grounded(item, transcript))) {
+      throw new Error('Unverified live draft.');
+    }
+    return { items: result.items.map(item => ({ text: item.text.trim(), quote: item.quote.trim() })) };
+  }
   const sections = headings[mode].map(heading => ({ heading, items: [] }));
   const result = await generate(rules + ' Write concise notes. State action items as commitments and preserve each named owner. Write questions only in Study prompts. Each item has a section, text, and a verbatim supporting quote. Omit unsupported sections. Never invent decisions, owners, or deadlines.',
     { mode, sections: headings[mode], transcript }, noteFormat(headings[mode]));

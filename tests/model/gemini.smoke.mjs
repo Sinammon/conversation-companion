@@ -4,6 +4,24 @@ import { once } from 'node:events';
 import demos from '../../src/ai/demos.json' with { type: 'json' };
 import { createNotesServer } from '../../server/service.mjs';
 
+test('private live notes return a cited draft for an invented meeting passage', async t => {
+  const key = process.env.GEMINI_API_KEY?.trim();
+  assert.ok(key, 'Set GEMINI_API_KEY for the private test.');
+  const server = createNotesServer({key, model:process.env.GEMINI_MODEL?.trim() || 'gemini-3.1-flash-lite', origins:[], liveNotesEnabled:true});
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.close());
+  const transcript = 'The imaginary workshop will meet on Friday. Bring a pencil for the drawing exercise.';
+  const reply = await fetch('http://127.0.0.1:' + server.address().port + '/live-notes', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({approvedProvider:'gemini', liveConsent:true, mode:'Meeting', transcript}),
+  });
+  const data = await reply.json();
+  assert.equal(reply.status, 200, data.error);
+  assert.ok(data.items.length > 0 && data.items.length <= 3);
+  assert.ok(data.items.every(item => item.text && item.quote && transcript.includes(item.quote)));
+});
+
 test('Gemini generates grounded notes in both modes and answers questions about a non-demo transcript', async t => {
   const key = process.env.GEMINI_API_KEY?.trim();
   assert.ok(key, 'Set GEMINI_API_KEY on the PC or in the workflow secret.');
