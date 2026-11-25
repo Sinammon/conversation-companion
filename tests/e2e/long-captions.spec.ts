@@ -36,4 +36,11 @@ test('a long caption feed stays put while paused and follows again on request', 
   await expect(page.getByText(/^Caption 100\./)).not.toBeInViewport();
   await page.getByRole('button', { name: 'Back to live · 20 new captions' }).click();
   await expect(page.getByText(/^Caption 100\./)).toBeInViewport();
+  await page.setViewportSize({ width: 700, height: 360 });
+  await expect(page.getByRole('button', { name: 'Stop microphone' })).toBeInViewport();
+  await page.getByRole('button', { name: 'Pause auto-scroll' }).click();
+  await page.getByRole('button', { name: 'Stop microphone' }).click();
+  await expect(page.getByRole('button', { name: 'Go to latest caption' })).toBeVisible();
+  await page.getByRole('button', { name: 'Go to latest caption' }).click();
+  await expect(page.getByText(/^Caption 100\./)).toBeInViewport();
 });

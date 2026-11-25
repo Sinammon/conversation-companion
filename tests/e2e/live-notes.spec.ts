@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test';
 
+test('starting a fresh session with live notes opens the draft reader', async ({page}) => {
+  test.skip(!process.env.EXPO_PUBLIC_AI_URL || process.env.EXPO_PUBLIC_LIVE_NOTES !== '1', 'Requires the private pilot build.');
+  await page.addInitScript(() => {
+    class SpeechFixture extends EventTarget { start() { this.dispatchEvent(new Event('start')); } stop() { this.dispatchEvent(new Event('end')); } abort() { this.stop(); } }
+    Object.defineProperty(window, 'webkitSpeechRecognition', {value:SpeechFixture, configurable:true});
+  });
+  await page.goto('/');
+  await page.getByRole('button',{name:'New session'}).click();
+  await page.getByRole('checkbox',{name:/Everyone agrees/}).check();
+  await page.getByRole('button',{name:'Live notes', exact:true}).click();
+  await page.getByRole('button',{name:'Agree and start with live notes'}).click();
+  await expect(page.getByText('Waiting for new captions')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Stop microphone'})).toBeInViewport();
+});
+
 test('live drafts opt in during capture, survive a restart and open offline', async ({page}) => {
   const url = process.env.EXPO_PUBLIC_AI_URL?.replace(/\/+$/, '');
   test.skip(!url || process.env.EXPO_PUBLIC_LIVE_NOTES !== '1', 'Requires the private pilot build.');
@@ -12,7 +27,11 @@ test('live drafts opt in during capture, survive a restart and open offline', as
         });
         this.dispatchEvent(new Event('start'));
       }
-      stop() { this.dispatchEvent(new Event('end')); }
+      stop() {
+        // A recognizer may return speech for the first time while draining.
+        Reflect.get(window,'speak')('Delayed final from the earlier microphone run.');
+        this.dispatchEvent(new Event('end'));
+      }
       abort() { this.stop(); }
     }
     Object.defineProperty(window, 'webkitSpeechRecognition', {value:SpeechFixture, configurable:true});
@@ -32,7 +51,9 @@ test('live drafts opt in during capture, survive a restart and open offline', as
   await page.clock.install();
   await page.evaluate(() => Reflect.get(window,'speak')('Before opting in.'));
   await page.getByRole('button',{name:'Live notes',exact:true}).click();
-  await page.getByRole('button',{name:/Enable live notes/}).click();
+  await page.getByRole('button',{name:'Stop to set up live notes'}).click();
+  await expect(page.getByText('Microphone off', {exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Agree and start with live notes'}).click();
   await page.clock.fastForward(45000);
   expect(requests).toEqual([]);
   await page.evaluate(text => Reflect.get(window,'speak')(text), quote);

@@ -17,6 +17,7 @@ export function useCapture() {
   const startedAt = useRef(0);
   const [elapsed, setElapsed] = useState(0);
   const mounted = useRef(true);
+  const afterStart = useRef<(() => void) | undefined>(undefined);
   const attempt = useRef(0);
   const microphone = useRef<PreparedMicrophone | undefined>(undefined);
   const chosen = useRef<MicrophoneInput | null>(null);
@@ -63,6 +64,8 @@ export function useCapture() {
       setInputInUse(activeMicrophone()?.label || microphone.current?.label ||
         (microphone.current?.options.companionAudioTrack ? chosen.current?.label : undefined) || 'System microphone');
       change('listening');
+      afterStart.current?.();
+      afterStart.current = undefined;
     }
   });
   useSpeechRecognitionEvent('result', (event) => {
@@ -108,8 +111,9 @@ export function useCapture() {
     return () => clearInterval(id);
   }, [phase]);
 
-  async function start(consent: boolean, input: MicrophoneInput | null) {
+  async function start(consent: boolean, input: MicrophoneInput | null, onListening?: () => void) {
     if (!consent || needsMicrophoneChoice || !['ready', 'paused'].includes(status.current)) return;
+    afterStart.current = onListening;
     const sequence = ++attempt.current;
     const current = () => mounted.current && sequence === attempt.current;
     chosen.current = input;

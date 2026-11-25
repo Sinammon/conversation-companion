@@ -6,7 +6,7 @@ import { matchingIndices } from '../storage/search';
 import { Action, c, Copy, formatTime, Label, s } from './ui';
 
 export function TranscriptReview({ session, size, busy, onBookmarks, initialQuery }: {
-  initialQuery: string; session: Session; size: number; busy: boolean; onBookmarks: (marks: number[]) => void;
+  initialQuery: string; session: Session; size: number; busy: boolean; onBookmarks: (index: number, marked: boolean) => void;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [passage, setPassage] = useState<number | null>(null);
@@ -30,7 +30,7 @@ export function TranscriptReview({ session, size, busy, onBookmarks, initialQuer
         <Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>{line.text}</Copy>
         <View style={{alignSelf: 'flex-start'}}><Action secondary icon="bookmark" disabled={busy}
           label={`${marked ? 'Remove bookmark' : 'Bookmark'} · Caption ${i + 1}`}
-          onPress={() => onBookmarks(marked ? marks.filter(mark => mark !== i) : [...marks, i].sort((a,b) => a-b))} /></View>
+          onPress={() => onBookmarks(i, !marked)} /></View>
       </View>;
     })}
   </>;

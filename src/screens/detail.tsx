@@ -9,11 +9,11 @@ import { demoForSession, transcriptOf } from '../ai/demos';
 import type { NoteJob } from '../ai/use-notes';
 import type { Answer, Session } from '../types';
 
-export function Detail({ session, initialQuery, size, job, generate, onBookmarks, onUpdate, onDelete, onBack }: {
+export function Detail({ session, initialQuery, size, job, generate, onBookmarks, onApprove, onDelete, onBack }: {
   initialQuery: string;
-  onBookmarks: (indices: number[]) => Promise<void>;
+  onBookmarks: (index: number, marked: boolean) => Promise<void>;
   job?: NoteJob; generate: (s: Session) => Promise<void>;
-  session: Session; size: number; onUpdate: (s: Session) => Promise<void>; onDelete: () => Promise<void>; onBack: () => void;
+  session: Session; size: number; onApprove: () => Promise<void>; onDelete: () => Promise<void>; onBack: () => void;
 }) {
   const [tab, setTab] = useState<'Transcript' | 'Notes' | 'Ask'>(!initialQuery && session.notes ? 'Notes' : 'Transcript');
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -56,7 +56,7 @@ export function Detail({ session, initialQuery, size, job, generate, onBookmarks
     {tab === 'Notes' && job?.busy && <Copy>Writing notes…</Copy>}
     {tab === 'Notes' && !!job?.error && <Copy alert>{job.error}</Copy>}
     {tab === 'Transcript' && <>
-      <TranscriptReview initialQuery={initialQuery} session={session} size={size} busy={!!busy} onBookmarks={marks => void run('Saving bookmark…', () => onBookmarks(marks))} />
+      <TranscriptReview initialQuery={initialQuery} session={session} size={size} busy={!!busy} onBookmarks={(index, marked) => void run('Saving bookmark…', () => onBookmarks(index, marked))} />
       {confirm ? <View style={s.group}><Copy>Delete this session and its notes from this device?</Copy><Action label="Keep session" secondary onPress={() => setConfirm(false)} />
         <Action label="Delete permanently" disabled={!!busy} onPress={() => void run('Deleting…', onDelete)} /></View>
         : <Action secondary label="Delete session" disabled={!!busy} onPress={() => setConfirm(true)} />}
@@ -68,8 +68,7 @@ export function Detail({ session, initialQuery, size, job, generate, onBookmarks
           <Text accessibilityRole="header" style={s.subtitle}>Share this transcript?</Text>
           <Copy muted>When you request notes or ask a question, Google Gemini receives the transcript and any question you submit through {serviceUrl}. Google may use free-tier content to improve its products.</Copy>
           {!demo && <Copy>By allowing sharing, you confirm that the participants agreed to share the transcript with Google.</Copy>}
-          <Action label="Allow sharing with Google Gemini" disabled={!!busy} onPress={() => void run('Saving…', () =>
-            onUpdate({ ...session, allowAI: true, approvedUrl: serviceUrl, approvedProvider: 'gemini' }))} />
+          <Action label="Allow sharing with Google Gemini" disabled={!!busy} onPress={() => void run('Saving…', onApprove)} />
         </>}
     </View>}
     {tab === 'Notes' && !!session.liveDrafts?.length && <View style={s.panel}>

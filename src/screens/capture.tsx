@@ -104,9 +104,9 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     }
     setConsent(!consent);
   }
-  function start() {
+  function start(withLiveNotes = false) {
     setShowInputs(false);
-    void cap.start(consent, input);
+    void cap.start(consent, input, withLiveNotes ? live.enable : undefined);
   }
   const microphones = <View style={s.group}>
     <Label>Microphone</Label>
@@ -162,6 +162,9 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
     }
   }
   const status = ({ ready: 'Ready', permission: 'Checking permission…', starting: 'Opening microphone…', listening: 'Listening', stopping: 'Finishing captions…', paused: 'Microphone off' })[cap.phase];
+  const livePanel = livePilot && !discard && (!focus || live.state.status !== 'off') && <LiveNotesPanel
+    notes={live} captions={cap.transcript.final} listening={listening} onStop={cap.stop}
+    onStart={() => start(true)} disabled={!consent || busy || saving || loadingInputs || cap.needsMicrophoneChoice} />;
   return <View style={{ flex: 1 }}>
     {(cap.phase === 'starting' || cap.phase === 'listening') && <KeepScreenAwake />}
     {!capturing ? <Page>
@@ -176,10 +179,11 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         <Check value={consent} toggle={toggleConsent} title="Everyone agrees to transcription." />
       </View>
       {microphones}
+      {livePanel}
       {!!cap.error && <Copy alert>{cap.error}</Copy>}
       {!!cap.error && Platform.OS !== 'web' && <Action secondary label="Open device settings" onPress={() => { void Linking.openSettings().catch(() => {}); }} />}
       <Action recording label={busy ? status : 'Start live captions'} icon="mic"
-        disabled={!consent || busy || loadingInputs || cap.needsMicrophoneChoice} onPress={start} />
+        disabled={!consent || busy || loadingInputs || cap.needsMicrophoneChoice} onPress={() => start()} />
     </Page> : <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 720, padding: compact ? 10 : 18, gap: compact ? 6 : 11 }}>
       <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '42%' : undefined }} contentContainerStyle={{ gap: compact ? 6 : 11 }} keyboardShouldPersistTaps="handled">
         <View style={[s.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}>
@@ -189,7 +193,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
         </View>
         <View style={[s.row, { justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, flexWrap: 'wrap',
           backgroundColor: listening ? c.recordWash : c.wash }]}>
-          <View style={{ flexShrink: 1 }}>
+          <View style={{ flex: 1, minWidth: 110 }}>
             <Label>{mode} · <Text style={{ fontVariant: ['tabular-nums'] }}>{formatTime(cap.elapsed)}</Text></Label>
             <Text accessibilityLiveRegion="polite" style={[s.label, { color: listening ? c.record : c.ink }]}>{status}</Text>
             {listening && !focus && <Label>Microphone in use: {cap.inputInUse}</Label>}
@@ -203,8 +207,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
       {Platform.OS === 'android' && <Text accessibilityLiveRegion="polite" style={{ height: 1, overflow: 'hidden' }}>{cap.transcript.final.at(-1)?.text}</Text>}
       <ScrollView style={{ flexGrow: 0, maxHeight: compact ? '30%' : '40%' }} contentContainerStyle={{ gap: 8 }}>
         {!!(cap.error || saveError) && <Copy alert>{saveError || cap.error}</Copy>}
-        {livePilot && listening && !discard && (!focus || live.state.status !== 'off') &&
-          <LiveNotesPanel notes={live} captions={cap.transcript.final} />}
+        {livePanel}
         {!discard && (!follow || !stopped) && <Action secondary icon={follow ? 'pause' : 'arrow'}
           label={follow ? 'Pause auto-scroll' : stopped ? 'Go to latest caption' : unread ? `Back to live · ${unread} new caption${unread === 1 ? '' : 's'}` : 'Back to live'}
           onPress={() => setPausedAt(follow ? cap.transcript.final.length : null)} />}
@@ -212,7 +215,7 @@ export function Capture({ onExit, onSave, size, sizeError, onSizeChange }: {
           disabled={latest < 0 || bookmarks.includes(latest) || saving} onPress={() => setBookmarks(previous => previous.includes(latest) ? previous : [...previous, latest])} />}
         {discard ? <View style={s.group}><Copy>Leave without saving these captions?</Copy><Action label="Keep session" onPress={() => setDiscard(false)} /><Action secondary label="Discard and leave" onPress={onExit} /></View>
           : stopped ? <>{microphones}<Action label={saving ? 'Saving…' : 'Save session'} disabled={!hasCaptions || saving} icon="book" onPress={() => void save()} />
-            <Action secondary label="Resume captions" icon="mic" disabled={saving || loadingInputs || cap.needsMicrophoneChoice} onPress={start} /></>
+            <Action secondary label="Resume captions" icon="mic" disabled={saving || loadingInputs || cap.needsMicrophoneChoice} onPress={() => start()} /></>
           : null}
       </ScrollView>
       {!stopped && !discard && <Action recording label={busy ? status : 'Stop microphone'} disabled={busy} icon="stop" onPress={cap.stop} />}

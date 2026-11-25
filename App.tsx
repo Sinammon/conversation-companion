@@ -16,7 +16,7 @@ import { recordingPreviewMessage } from './src/capture/speech-availability';
 import { Capture } from './src/screens/capture';
 import { Notebook } from './src/screens/notebook';
 import { Detail } from './src/screens/detail';
-import { loadSessions, saveSession, saveBookmarks, deleteSession, loadSize, saveSize } from './src/storage/notebook';
+import { loadSessions, saveSession, saveBookmark, approveSession, deleteSession, loadSize, saveSize } from './src/storage/notebook';
 import { serviceUrl } from './src/ai/client';
 import { createDemoSession, demoSessionId } from './src/ai/demos';
 import { useNotes } from './src/ai/use-notes';
@@ -104,10 +104,13 @@ export default function App() {
       onDemo={id => void openDemo(id)} openingDemo={openingDemo} demoError={demoError} /> :
     screen === 'Capture' && speech ? <Capture size={size} sizeError={sizeError} onSizeChange={v => void changeSize(v)} onExit={() => setScreen('Notebook')} onSave={async s => { await persist(s); openSession(s); }} /> :
     screen === 'Detail' && session ? <Detail key={session.id} session={session} initialQuery={openingQuery} size={size} job={jobs[session.id]} generate={generate} onBack={() => setScreen('Notebook')}
-      onBookmarks={async bookmarks => {
-        if (!await saveBookmarks(session.id, bookmarks)) throw new Error('This session could not be found.');
+      onBookmarks={async (index, marked) => {
+        const bookmarks = await saveBookmark(session.id, index, marked);
         setSessions(prev => prev.map(item => item.id === session.id ? { ...item, bookmarks } : item));
-      }} onUpdate={persist} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
+      }} onApprove={async () => {
+        await approveSession(session.id, serviceUrl);
+        setSessions(prev => prev.map(item => item.id === session.id ? { ...item, allowAI: true, approvedProvider: 'gemini', approvedUrl: serviceUrl } : item));
+      }} onDelete={async () => { await deleteSession(session.id); setSessions(prev => prev.filter(s => s.id !== session.id)); setScreen('Notebook'); }} /> :
     <Page><Heading>Preferences</Heading><CaptionSizeControl size={size} onChange={v => void changeSize(v)} />
       {!!sizeError && <Copy alert>{sizeError}</Copy>}
       <View style={{ gap: 10, padding: 18, borderRadius: 9, backgroundColor: c.reader }}><Label>Text preview</Label><Copy style={{ fontSize: size, lineHeight: size * 1.45 }}>This is your caption size.</Copy></View>

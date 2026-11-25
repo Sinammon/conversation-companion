@@ -1,5 +1,22 @@
 import { expect, test } from '@playwright/test';
 
+test('two open copies can bookmark different captions and approve sharing without losing either mark', async ({page,context}) => {
+  // Exercise the fallback used by phone browsers on a plain HTTP Wi-Fi address.
+  await context.addInitScript(() => Object.defineProperty(navigator, 'locks', {value:undefined, configurable:true}));
+  const key = 'conversation-companion.session.two-tabs';
+  await page.goto('/');
+  await page.evaluate(key => localStorage.setItem(key, JSON.stringify({id:'two-tabs',title:'Shared notebook',mode:'Lecture', startedAt:1,durationMs:2000,allowAI:false,captions:[{text:'First line',at:0},{text:'Second line',at:1000}]})), key);
+  await page.reload();
+  const other = await context.newPage();
+  await other.goto('/');
+  for (const tab of [page,other]) await tab.getByRole('button',{name:/Shared notebook/}).click();
+  await page.getByRole('button',{name:'Bookmark · Caption 1',exact:true}).click();
+  await other.getByRole('button',{name:'Bookmark · Caption 2',exact:true}).click();
+  await page.getByRole('radio',{name:'Notes'}).click();
+  if (process.env.EXPO_PUBLIC_AI_URL) await page.getByRole('button',{name:'Allow sharing with Google Gemini'}).click();
+  await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).bookmarks, key)).toEqual([0,1]);
+});
+
 test('a notebook match opens its transcript and a saved bookmark opens with context', async ({page}) => {
   await page.addInitScript(() => {
     const key = 'conversation-companion.session.read';
